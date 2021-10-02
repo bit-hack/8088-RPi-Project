@@ -50,8 +50,29 @@ int Read_Address() {
   return Address;
 }
 
-// Reads the IO_M, RD, WR pins
-char Read_Control_Bus() {
+static char Read_Control_Bus() {
+
+  // /SSO pin details:
+  //
+  // /SSO   IO/M    DT/R
+  // 0      0       0                 Code Access
+  // 1      0       0                 Read Memory
+  // 0      0       1                 Write Memory
+  // 1      0       1                 Passive
+  // 0      1       0                 Int Ack
+  // 1      1       0                 Read I/O Port
+  // 0      1       1                 Write I/O port
+  // 1      1       1                 Halt
+
+  // function returns:
+  //
+  // INTA   IO/M    DT/R
+  // 0      1       0      = 2    Interrupt
+  // 1      0       0      = 4    Read Mem
+  // 1      0       1      = 5    Write Mem
+  // 1      1       0      = 6    Read IO
+  // 1      1       1      = 7    Write IO
+
   char Control_Bus = 0;
   Control_Bus |= digitalRead(PIN_DTR)  << 0;
   Control_Bus |= digitalRead(PIN_IO_M) << 1;
@@ -100,8 +121,8 @@ void Data_Bus_Direction_8086_IN() {
   pinMode(AD6, INPUT);
   pinMode(AD7, INPUT);
 
-  pinMode(A8, INPUT);
-  pinMode(A9, INPUT);
+  pinMode(A8,  INPUT);
+  pinMode(A9,  INPUT);
   pinMode(A10, INPUT);
   pinMode(A11, INPUT);
   pinMode(A12, INPUT);
@@ -120,8 +141,8 @@ void Data_Bus_Direction_8086_OUT() {
   pinMode(AD6, OUTPUT);
   pinMode(AD7, OUTPUT);
 
-  pinMode(A8, OUTPUT);
-  pinMode(A9, OUTPUT);
+  pinMode(A8,  OUTPUT);
+  pinMode(A9,  OUTPUT);
   pinMode(A10, OUTPUT);
   pinMode(A11, OUTPUT);
   pinMode(A12, OUTPUT);
@@ -132,7 +153,7 @@ void Data_Bus_Direction_8086_OUT() {
 
 // Writes Data to Data Port 0-7
 void Write_To_Data_Port_0_7(char Byte) {
-  digitalWrite(AD0, Byte & 1);
+  digitalWrite(AD0, (Byte >> 0) & 1);
   digitalWrite(AD1, (Byte >> 1) & 1);
   digitalWrite(AD2, (Byte >> 2) & 1);
   digitalWrite(AD3, (Byte >> 3) & 1);
@@ -144,8 +165,8 @@ void Write_To_Data_Port_0_7(char Byte) {
 
 // Writes Data to Data Port 8-15 8086 only
 void Write_To_Data_Port_8_15(char Byte) {
-  digitalWrite(A8, Byte & 1);
-  digitalWrite(A9, (Byte >> 1) & 1);
+  digitalWrite(A8,  (Byte >> 0) & 1);
+  digitalWrite(A9,  (Byte >> 1) & 1);
   digitalWrite(A10, (Byte >> 2) & 1);
   digitalWrite(A11, (Byte >> 3) & 1);
   digitalWrite(A12, (Byte >> 4) & 1);
@@ -156,29 +177,29 @@ void Write_To_Data_Port_8_15(char Byte) {
 
 // Reads Data to Data Port 0-7
 char Read_From_Data_Port_0_7() {
-  char ret;
-  ret = digitalRead(AD0);
-  ret = ret + (digitalRead(AD1) << 1);
-  ret = ret + (digitalRead(AD2) << 2);
-  ret = ret + (digitalRead(AD3) << 3);
-  ret = ret + (digitalRead(AD4) << 4);
-  ret = ret + (digitalRead(AD5) << 5);
-  ret = ret + (digitalRead(AD6) << 6);
-  ret = ret + (digitalRead(AD7) << 7);
+  char ret = 0;
+  ret |= digitalRead(AD0) << 0;
+  ret |= digitalRead(AD1) << 1;
+  ret |= digitalRead(AD2) << 2;
+  ret |= digitalRead(AD3) << 3;
+  ret |= digitalRead(AD4) << 4;
+  ret |= digitalRead(AD5) << 5;
+  ret |= digitalRead(AD6) << 6;
+  ret |= digitalRead(AD7) << 7;
   return ret;
 }
 
 // Reads Data to Data Port 8-15 8086 only
 char Read_From_Data_Port_8_15() {
-  char ret;
-  ret = digitalRead(A8);
-  ret = ret + (digitalRead(A9) << 1);
-  ret = ret + (digitalRead(A10) << 2);
-  ret = ret + (digitalRead(A11) << 3);
-  ret = ret + (digitalRead(A12) << 4);
-  ret = ret + (digitalRead(A13) << 5);
-  ret = ret + (digitalRead(A14) << 6);
-  ret = ret + (digitalRead(A15) << 7);
+  char ret = 0;
+  ret |= digitalRead(A8)  << 0;
+  ret |= digitalRead(A9)  << 1;
+  ret |= digitalRead(A10) << 2;
+  ret |= digitalRead(A11) << 3;
+  ret |= digitalRead(A12) << 4;
+  ret |= digitalRead(A13) << 5;
+  ret |= digitalRead(A14) << 6;
+  ret |= digitalRead(A15) << 7;
   return ret;
 }
 
@@ -218,15 +239,15 @@ void Setup() {
   Stop_Flag = false;
   wiringPiSetup();
 
-  pinMode(PIN_CLK, OUTPUT);
+  pinMode(PIN_CLK,   OUTPUT);
   pinMode(PIN_RESET, OUTPUT);
-  pinMode(PIN_ALE, INPUT);
-  pinMode(PIN_IO_M, INPUT);
-  pinMode(PIN_DTR, INPUT);
-  pinMode(PIN_BHE, INPUT);
+  pinMode(PIN_ALE,   INPUT);
+  pinMode(PIN_IO_M,  INPUT);
+  pinMode(PIN_DTR,   INPUT);
+  pinMode(PIN_BHE,   INPUT);
+  pinMode(PIN_INTR,  OUTPUT);
+  pinMode(PIN_INTA,  INPUT);
 
-  pinMode(PIN_INTR, OUTPUT);
-  pinMode(PIN_INTA, INPUT);
   digitalWrite(PIN_INTR, LOW);
 
   pinMode(AD0, INPUT);
@@ -238,8 +259,8 @@ void Setup() {
   pinMode(AD6, INPUT);
   pinMode(AD7, INPUT);
 
-  pinMode(A8, INPUT);
-  pinMode(A9, INPUT);
+  pinMode(A8,  INPUT);
+  pinMode(A9,  INPUT);
   pinMode(A10, INPUT);
   pinMode(A11, INPUT);
   pinMode(A12, INPUT);
@@ -253,236 +274,247 @@ void Setup() {
   pinMode(A19, INPUT);
 }
 
-// System Bus decoder
-void Start_System_Bus(int Processor) {
+static void Start_System_Bus_88() {
+  while (Stop_Flag != true) {
+    CLK();  // -> T1
+    // wait for ALE to be asserted
+    if (digitalRead(PIN_ALE) != 1) {
+      continue;
+    }
+    const int Address = Read_Address();
+    CLK();  // -> T2
+    switch (Read_Control_Bus()) {
+    // Read Mem
+    case 0x04:
+      Data_Bus_Direction_8088_OUT();
+      Write_To_Data_Port_0_7(RAM[Address]);
+      CLK();  // -> T3
+      CLK();  // -> T4
+      Data_Bus_Direction_8088_IN();
+      break;
+
+    // Write Mem
+    case 0x05:
+      RAM[Address] = Read_From_Data_Port_0_7();
+      CLK();  // -> T3
+      CLK();  // -> T4
+      break;
+
+    // Read IO
+    case 0x06:
+      Data_Bus_Direction_8088_OUT();
+      Write_To_Data_Port_0_7(IO[Address]);
+      CLK();  // -> T3
+      CLK();  // -> T4
+      Data_Bus_Direction_8088_IN();
+      break;
+
+    // Write IO
+    case 0x07:
+      IO[Address] = Read_From_Data_Port_0_7();
+      printf("Write IO %#X, ", Address);
+      printf("Data %#X \n", Read_From_Data_Port_0_7());
+      CLK();  // -> T3
+      CLK();  // -> T4
+      break;
+
+    // Interrupt
+    case 0x02:
+      // Waits for second INTA bus cycle 4 CLKS 8088
+      CLK();
+      CLK();
+      CLK();
+      CLK();
+      switch (Read_Interrupts()) {
+      case 0x01:
+        Data_Bus_Direction_8088_OUT();
+        Write_To_Data_Port_0_7(0x08);
+        CLK();
+        CLK();
+        Data_Bus_Direction_8088_IN();
+        IRQ0_Flag = false;
+        digitalWrite(PIN_INTR, LOW);
+        break;
+      case 0x02:
+        Data_Bus_Direction_8088_OUT();
+        Write_To_Data_Port_0_7(0x09);
+        CLK();
+        CLK();
+        Data_Bus_Direction_8088_IN();
+        IRQ1_Flag = false;
+        digitalWrite(PIN_INTR, LOW);
+        break;
+      case 0x03:
+        Data_Bus_Direction_8088_OUT();
+        Write_To_Data_Port_0_7(0x08);
+        CLK();
+        CLK();
+        Data_Bus_Direction_8088_IN();
+        IRQ0_Flag = false;
+        break;
+      default:
+        printf("Default Interrupt %#X \n", Read_Interrupts());
+        break;
+      }
+      break;
+    default:
+      printf("Default \n");
+      break;
+    }
+  }
+}
+
+static void Start_System_Bus_86() {
   char Control_Bus;
   int Address;
   char Memory_IO_Bank;
-
-  if (Processor == 88) {
-    while (Stop_Flag != true) {
+  while (Stop_Flag != true) {
+    CLK();
+    if (digitalRead(PIN_ALE) == 1) {
+      Address = Read_Address();
+      Memory_IO_Bank = Read_Memory_Bank();
       CLK();
-      if (digitalRead(PIN_ALE) == 1) {
-        Address = Read_Address();
+      switch (Read_Control_Bus() + (Memory_IO_Bank << 4)) {
+        // Write Mem
+      case 0x07:
+        RAM[Address] = Read_From_Data_Port_0_7();
+        RAM[Address + 1] = Read_From_Data_Port_8_15();
         CLK();
-        switch (Read_Control_Bus()) {
-          // Read Mem
-        case 0x04:
-          Data_Bus_Direction_8088_OUT();
-          Write_To_Data_Port_0_7(RAM[Address]);
+        CLK();
+        break;
+      case 0x17:
+        RAM[Address] = Read_From_Data_Port_8_15();
+        CLK();
+        CLK();
+        break;
+      case 0x27:
+        RAM[Address] = Read_From_Data_Port_0_7();
+        CLK();
+        CLK();
+        break;
+        // Read Mem
+      case 0x06:
+        Data_Bus_Direction_8086_OUT();
+        Write_To_Data_Port_0_7(RAM[Address]);
+        Write_To_Data_Port_8_15(RAM[Address + 1]);
+        CLK();
+        CLK();
+        Data_Bus_Direction_8086_IN();
+        break;
+      case 0x16:
+        Data_Bus_Direction_8086_OUT();
+        Write_To_Data_Port_8_15(RAM[Address]);
+        CLK();
+        CLK();
+        Data_Bus_Direction_8086_IN();
+        break;
+      case 0x26:
+        Data_Bus_Direction_8086_OUT();
+        Write_To_Data_Port_0_7(RAM[Address]);
+        CLK();
+        CLK();
+        Data_Bus_Direction_8086_IN();
+        break;
+        // Write IO
+      case 0x05:
+        IO[Address] = Read_From_Data_Port_0_7();
+        IO[Address + 1] = Read_From_Data_Port_8_15();
+        CLK();
+        CLK();
+        break;
+      case 0x15:
+        IO[Address] = Read_From_Data_Port_8_15();
+        CLK();
+        CLK();
+        break;
+      case 0x25:
+        IO[Address] = Read_From_Data_Port_0_7();
+        CLK();
+        CLK();
+        break;
+        // Read IO
+      case 0x04:
+        Data_Bus_Direction_8086_OUT();
+        Write_To_Data_Port_0_7(IO[Address]);
+        Write_To_Data_Port_8_15(IO[Address + 1]);
+        CLK();
+        CLK();
+        Data_Bus_Direction_8086_IN();
+        break;
+      case 0x14:
+        Data_Bus_Direction_8086_OUT();
+        Write_To_Data_Port_8_15(IO[Address]);
+        CLK();
+        CLK();
+        Data_Bus_Direction_8086_IN();
+        break;
+      case 0x24:
+        Data_Bus_Direction_8086_OUT();
+        Write_To_Data_Port_0_7(IO[Address]);
+        CLK();
+        CLK();
+        Data_Bus_Direction_8086_IN();
+        break;
+        // Interrupt
+      case 0x00:
+        // Waits for second INTA bus cycle 7 CLKS 8086
+        CLK();
+        CLK();
+        CLK();
+        CLK();
+        CLK();
+        CLK();
+        CLK();
+        switch (Read_Interrupts()) {
+          // System Timer
+        case 0x01:
+          Data_Bus_Direction_8086_OUT();
+          Write_To_Data_Port_0_7(0x08);
           CLK();
           CLK();
-          Data_Bus_Direction_8088_IN();
+          Data_Bus_Direction_8086_IN();
+          IRQ0_Flag = false;
+          digitalWrite(PIN_INTR, LOW);
           break;
-          // Write Mem
-        case 0x05:
-          RAM[Address] = Read_From_Data_Port_0_7();
-          CLK();
-          CLK();
-          break;
-          // Read IO
-        case 0x06:
-          Data_Bus_Direction_8088_OUT();
-          Write_To_Data_Port_0_7(IO[Address]);
-          printf("Read IO %#X, ", Address);
-          printf("Data %#X \n", IO[Address]);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8088_IN();
-          break;
-          // Write IO
-        case 0x07:
-          IO[Address] = Read_From_Data_Port_0_7();
-          printf("Write IO %#X, ", Address);
-          printf("Data %#X \n", Read_From_Data_Port_0_7());
-          CLK();
-          CLK();
-          break;
-          // Interrupt
+          // Keyboard
         case 0x02:
-          // Waits for second INTA bus cycle 4 CLKS 8088
+          Data_Bus_Direction_8086_OUT();
+          Write_To_Data_Port_0_7(0x09);
           CLK();
           CLK();
+          Data_Bus_Direction_8086_IN();
+          IRQ1_Flag = false;
+          digitalWrite(PIN_INTR, LOW);
+          break;
+          // System Timer and Keyboard, System Timer is handled
+        case 0x03:
+          Data_Bus_Direction_8086_OUT();
+          Write_To_Data_Port_0_7(0x08);
           CLK();
           CLK();
-          switch (Read_Interrupts()) {
-          case 0x01:
-            Data_Bus_Direction_8088_OUT();
-            Write_To_Data_Port_0_7(0x08);
-            CLK();
-            CLK();
-            Data_Bus_Direction_8088_IN();
-            IRQ0_Flag = false;
-            digitalWrite(PIN_INTR, LOW);
-            break;
-          case 0x02:
-            Data_Bus_Direction_8088_OUT();
-            Write_To_Data_Port_0_7(0x09);
-            CLK();
-            CLK();
-            Data_Bus_Direction_8088_IN();
-            IRQ1_Flag = false;
-            digitalWrite(PIN_INTR, LOW);
-            break;
-          case 0x03:
-            Data_Bus_Direction_8088_OUT();
-            Write_To_Data_Port_0_7(0x08);
-            CLK();
-            CLK();
-            Data_Bus_Direction_8088_IN();
-            IRQ0_Flag = false;
-            break;
-          default:
-            printf("Default Interrupt %#X \n", Read_Interrupts());
-            break;
-          }
+          Data_Bus_Direction_8086_IN();
+          IRQ0_Flag = false;
           break;
         default:
-          printf("Default \n");
+          printf("Default Interrupt %#X \n", Read_Interrupts());
           break;
         }
+        break;
+      default:
+        printf("Default \n");
+        break;
       }
     }
   }
+}
+
+// System Bus decoder
+void Start_System_Bus(int Processor) {
+  if (Processor == 88) {
+    Start_System_Bus_88();
+  }
   if (Processor == 86) {
-    while (Stop_Flag != true) {
-      CLK();
-      if (digitalRead(PIN_ALE) == 1) {
-        Address = Read_Address();
-        Memory_IO_Bank = Read_Memory_Bank();
-        CLK();
-        switch (Read_Control_Bus() + (Memory_IO_Bank << 4)) {
-          // Write Mem
-        case 0x07:
-          RAM[Address] = Read_From_Data_Port_0_7();
-          RAM[Address + 1] = Read_From_Data_Port_8_15();
-          CLK();
-          CLK();
-          break;
-        case 0x17:
-          RAM[Address] = Read_From_Data_Port_8_15();
-          CLK();
-          CLK();
-          break;
-        case 0x27:
-          RAM[Address] = Read_From_Data_Port_0_7();
-          CLK();
-          CLK();
-          break;
-          // Read Mem
-        case 0x06:
-          Data_Bus_Direction_8086_OUT();
-          Write_To_Data_Port_0_7(RAM[Address]);
-          Write_To_Data_Port_8_15(RAM[Address + 1]);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8086_IN();
-          break;
-        case 0x16:
-          Data_Bus_Direction_8086_OUT();
-          Write_To_Data_Port_8_15(RAM[Address]);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8086_IN();
-          break;
-        case 0x26:
-          Data_Bus_Direction_8086_OUT();
-          Write_To_Data_Port_0_7(RAM[Address]);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8086_IN();
-          break;
-          // Write IO
-        case 0x05:
-          IO[Address] = Read_From_Data_Port_0_7();
-          IO[Address + 1] = Read_From_Data_Port_8_15();
-          CLK();
-          CLK();
-          break;
-        case 0x15:
-          IO[Address] = Read_From_Data_Port_8_15();
-          CLK();
-          CLK();
-          break;
-        case 0x25:
-          IO[Address] = Read_From_Data_Port_0_7();
-          CLK();
-          CLK();
-          break;
-          // Read IO
-        case 0x04:
-          Data_Bus_Direction_8086_OUT();
-          Write_To_Data_Port_0_7(IO[Address]);
-          Write_To_Data_Port_8_15(IO[Address + 1]);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8086_IN();
-          break;
-        case 0x14:
-          Data_Bus_Direction_8086_OUT();
-          Write_To_Data_Port_8_15(IO[Address]);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8086_IN();
-          break;
-        case 0x24:
-          Data_Bus_Direction_8086_OUT();
-          Write_To_Data_Port_0_7(IO[Address]);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8086_IN();
-          break;
-          // Interrupt
-        case 0x00:
-          // Waits for second INTA bus cycle 7 CLKS 8086
-          CLK();
-          CLK();
-          CLK();
-          CLK();
-          CLK();
-          CLK();
-          CLK();
-          switch (Read_Interrupts()) {
-            // System Timer
-          case 0x01:
-            Data_Bus_Direction_8086_OUT();
-            Write_To_Data_Port_0_7(0x08);
-            CLK();
-            CLK();
-            Data_Bus_Direction_8086_IN();
-            IRQ0_Flag = false;
-            digitalWrite(PIN_INTR, LOW);
-            break;
-            // Keyboard
-          case 0x02:
-            Data_Bus_Direction_8086_OUT();
-            Write_To_Data_Port_0_7(0x09);
-            CLK();
-            CLK();
-            Data_Bus_Direction_8086_IN();
-            IRQ1_Flag = false;
-            digitalWrite(PIN_INTR, LOW);
-            break;
-            // System Timer and Keyboard, System Timer is handled
-          case 0x03:
-            Data_Bus_Direction_8086_OUT();
-            Write_To_Data_Port_0_7(0x08);
-            CLK();
-            CLK();
-            Data_Bus_Direction_8086_IN();
-            IRQ0_Flag = false;
-            break;
-          default:
-            printf("Default Interrupt %#X \n", Read_Interrupts());
-            break;
-          }
-          break;
-        default:
-          printf("Default \n");
-          break;
-        }
-      }
-    }
+    Start_System_Bus_86();
   }
 }
 
