@@ -26,44 +26,44 @@ char Read_Interrupts() {
 ///////////////////////////////
 
 int Read_Address() {
-  int Address;
-  Address = digitalRead(AD0);
-  Address = Address + (digitalRead(AD1) << 1);
-  Address = Address + (digitalRead(AD2) << 2);
-  Address = Address + (digitalRead(AD3) << 3);
-  Address = Address + (digitalRead(AD4) << 4);
-  Address = Address + (digitalRead(AD5) << 5);
-  Address = Address + (digitalRead(AD6) << 6);
-  Address = Address + (digitalRead(AD7) << 7);
-  Address = Address + (digitalRead(A8) << 8);
-  Address = Address + (digitalRead(A9) << 9);
-  Address = Address + (digitalRead(A10) << 10);
-  Address = Address + (digitalRead(A11) << 11);
-  Address = Address + (digitalRead(A12) << 12);
-  Address = Address + (digitalRead(A13) << 13);
-  Address = Address + (digitalRead(A14) << 14);
-  Address = Address + (digitalRead(A15) << 15);
-  Address = Address + (digitalRead(A16) << 16);
-  Address = Address + (digitalRead(A17) << 17);
-  Address = Address + (digitalRead(A18) << 18);
-  Address = Address + (digitalRead(A19) << 19);
+  int Address = 0;
+  Address |= digitalRead(AD0) << 0;
+  Address |= digitalRead(AD1) << 1;
+  Address |= digitalRead(AD2) << 2;
+  Address |= digitalRead(AD3) << 3;
+  Address |= digitalRead(AD4) << 4;
+  Address |= digitalRead(AD5) << 5;
+  Address |= digitalRead(AD6) << 6;
+  Address |= digitalRead(AD7) << 7;
+  Address |= digitalRead(A8)  << 8;
+  Address |= digitalRead(A9)  << 9;
+  Address |= digitalRead(A10) << 10;
+  Address |= digitalRead(A11) << 11;
+  Address |= digitalRead(A12) << 12;
+  Address |= digitalRead(A13) << 13;
+  Address |= digitalRead(A14) << 14;
+  Address |= digitalRead(A15) << 15;
+  Address |= digitalRead(A16) << 16;
+  Address |= digitalRead(A17) << 17;
+  Address |= digitalRead(A18) << 18;
+  Address |= digitalRead(A19) << 19;
   return Address;
 }
 
 // Reads the IO_M, RD, WR pins
 char Read_Control_Bus() {
-  char Control_Bus;
-  Control_Bus = digitalRead(PIN_DTR);
-  Control_Bus = Control_Bus + (digitalRead(PIN_IO_M) << 1);
-  Control_Bus = Control_Bus + (digitalRead(PIN_INTA) << 2);
+  char Control_Bus = 0;
+  Control_Bus |= digitalRead(PIN_DTR)  << 0;
+  Control_Bus |= digitalRead(PIN_IO_M) << 1;
+  Control_Bus |= digitalRead(PIN_INTA) << 2;
   return Control_Bus;
 }
 
 // Reads the selected Memory Bank, High/Low 8086 only
 char Read_Memory_Bank() {
-  char Memory_Bank;
-  Memory_Bank = digitalRead(AD0);
-  Memory_Bank = Memory_Bank + (digitalRead(PIN_BHE) << 1);
+  char Memory_Bank = 0;
+  Memory_Bank |= digitalRead(AD0)     << 0;
+  Memory_Bank |= digitalRead(PIN_BHE) << 1;
   return Memory_Bank;
 }
 
