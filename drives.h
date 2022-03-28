@@ -4,7 +4,8 @@
 #include "x86.h"
 
 
-void Start_Drives(string Floppy, string Hard_Drive);
+void Start_Drives(std::string Floppy,
+                  std::string Hard_Drive);
 
 
 #endif

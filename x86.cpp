@@ -25,8 +25,8 @@ char Read_Interrupts() {
 // System Bus
 ///////////////////////////////
 
-int Read_Address() {
-  int Address = 0;
+int32_t Read_Address() {
+  int32_t Address = 0;
   Address |= digitalRead(AD0) << 0;
   Address |= digitalRead(AD1) << 1;
   Address |= digitalRead(AD2) << 2;
@@ -204,34 +204,15 @@ char Read_From_Data_Port_8_15() {
 }
 
 // Clicks the CLK pin
-void CLK() {
-  digitalWrite(PIN_CLK, HIGH);
-  digitalWrite(PIN_CLK, HIGH);
-  digitalWrite(PIN_CLK, HIGH);
-  digitalWrite(PIN_CLK, HIGH);
-  digitalWrite(PIN_CLK, HIGH);
-  digitalWrite(PIN_CLK, HIGH);
-
-  digitalWrite(PIN_CLK, HIGH);
-  digitalWrite(PIN_CLK, HIGH);
-  digitalWrite(PIN_CLK, HIGH);
-  digitalWrite(PIN_CLK, HIGH);
-  digitalWrite(PIN_CLK, HIGH);
-  digitalWrite(PIN_CLK, HIGH);
-
-  digitalWrite(PIN_CLK, LOW);
-  digitalWrite(PIN_CLK, LOW);
-  digitalWrite(PIN_CLK, LOW);
-  digitalWrite(PIN_CLK, LOW);
-  digitalWrite(PIN_CLK, LOW);
-  digitalWrite(PIN_CLK, LOW);
-
-  digitalWrite(PIN_CLK, LOW);
-  digitalWrite(PIN_CLK, LOW);
-  digitalWrite(PIN_CLK, LOW);
-  digitalWrite(PIN_CLK, LOW);
-  digitalWrite(PIN_CLK, LOW);
-  digitalWrite(PIN_CLK, LOW);
+static void CLK(uint32_t cycles=1) {
+  while (cycles--) {
+    for (uint32_t i=0; i<12; ++i) {
+      digitalWrite(PIN_CLK, HIGH);
+    }
+    for (uint32_t i=0; i<12; ++i) {
+      digitalWrite(PIN_CLK, LOW);
+    }
+  }
 }
 
 // Sets up Raspberry PI pins in the begining
@@ -281,7 +262,7 @@ static void Start_System_Bus_88() {
     if (digitalRead(PIN_ALE) != 1) {
       continue;
     }
-    const int Address = Read_Address();
+    const int32_t Address = Read_Address();
     CLK();  // -> T2
     switch (Read_Control_Bus()) {
     // Read Mem
@@ -321,16 +302,12 @@ static void Start_System_Bus_88() {
     // Interrupt
     case 0x02:
       // Waits for second INTA bus cycle 4 CLKS 8088
-      CLK();
-      CLK();
-      CLK();
-      CLK();
+      CLK(4);
       switch (Read_Interrupts()) {
       case 0x01:
         Data_Bus_Direction_8088_OUT();
         Write_To_Data_Port_0_7(0x08);
-        CLK();
-        CLK();
+        CLK(2);
         Data_Bus_Direction_8088_IN();
         IRQ0_Flag = false;
         digitalWrite(PIN_INTR, LOW);
@@ -338,8 +315,7 @@ static void Start_System_Bus_88() {
       case 0x02:
         Data_Bus_Direction_8088_OUT();
         Write_To_Data_Port_0_7(0x09);
-        CLK();
-        CLK();
+        CLK(2);
         Data_Bus_Direction_8088_IN();
         IRQ1_Flag = false;
         digitalWrite(PIN_INTR, LOW);
@@ -347,8 +323,7 @@ static void Start_System_Bus_88() {
       case 0x03:
         Data_Bus_Direction_8088_OUT();
         Write_To_Data_Port_0_7(0x08);
-        CLK();
-        CLK();
+        CLK(2);
         Data_Bus_Direction_8088_IN();
         IRQ0_Flag = false;
         break;
@@ -365,8 +340,7 @@ static void Start_System_Bus_88() {
 }
 
 static void Start_System_Bus_86() {
-  char Control_Bus;
-  int Address;
+  int32_t Address;
   char Memory_IO_Bank;
   while (Stop_Flag != true) {
     CLK();
@@ -379,99 +353,80 @@ static void Start_System_Bus_86() {
       case 0x07:
         RAM[Address] = Read_From_Data_Port_0_7();
         RAM[Address + 1] = Read_From_Data_Port_8_15();
-        CLK();
-        CLK();
+        CLK(2);
         break;
       case 0x17:
         RAM[Address] = Read_From_Data_Port_8_15();
-        CLK();
-        CLK();
+        CLK(2);
         break;
       case 0x27:
         RAM[Address] = Read_From_Data_Port_0_7();
-        CLK();
-        CLK();
+        CLK(2);
         break;
         // Read Mem
       case 0x06:
         Data_Bus_Direction_8086_OUT();
         Write_To_Data_Port_0_7(RAM[Address]);
         Write_To_Data_Port_8_15(RAM[Address + 1]);
-        CLK();
-        CLK();
+        CLK(2);
         Data_Bus_Direction_8086_IN();
         break;
       case 0x16:
         Data_Bus_Direction_8086_OUT();
         Write_To_Data_Port_8_15(RAM[Address]);
-        CLK();
-        CLK();
+        CLK(2);
         Data_Bus_Direction_8086_IN();
         break;
       case 0x26:
         Data_Bus_Direction_8086_OUT();
         Write_To_Data_Port_0_7(RAM[Address]);
-        CLK();
-        CLK();
+        CLK(2);
         Data_Bus_Direction_8086_IN();
         break;
         // Write IO
       case 0x05:
         IO[Address] = Read_From_Data_Port_0_7();
         IO[Address + 1] = Read_From_Data_Port_8_15();
-        CLK();
-        CLK();
+        CLK(2);
         break;
       case 0x15:
         IO[Address] = Read_From_Data_Port_8_15();
-        CLK();
-        CLK();
+        CLK(2);
         break;
       case 0x25:
         IO[Address] = Read_From_Data_Port_0_7();
-        CLK();
-        CLK();
+        CLK(2);
         break;
         // Read IO
       case 0x04:
         Data_Bus_Direction_8086_OUT();
         Write_To_Data_Port_0_7(IO[Address]);
         Write_To_Data_Port_8_15(IO[Address + 1]);
-        CLK();
-        CLK();
+        CLK(2);
         Data_Bus_Direction_8086_IN();
         break;
       case 0x14:
         Data_Bus_Direction_8086_OUT();
         Write_To_Data_Port_8_15(IO[Address]);
-        CLK();
-        CLK();
+        CLK(2);
         Data_Bus_Direction_8086_IN();
         break;
       case 0x24:
         Data_Bus_Direction_8086_OUT();
         Write_To_Data_Port_0_7(IO[Address]);
-        CLK();
-        CLK();
+        CLK(2);
         Data_Bus_Direction_8086_IN();
         break;
         // Interrupt
       case 0x00:
         // Waits for second INTA bus cycle 7 CLKS 8086
-        CLK();
-        CLK();
-        CLK();
-        CLK();
-        CLK();
-        CLK();
-        CLK();
+        CLK(7);
         switch (Read_Interrupts()) {
           // System Timer
         case 0x01:
           Data_Bus_Direction_8086_OUT();
           Write_To_Data_Port_0_7(0x08);
-          CLK();
-          CLK();
+          CLK(2);
           Data_Bus_Direction_8086_IN();
           IRQ0_Flag = false;
           digitalWrite(PIN_INTR, LOW);
@@ -480,8 +435,7 @@ static void Start_System_Bus_86() {
         case 0x02:
           Data_Bus_Direction_8086_OUT();
           Write_To_Data_Port_0_7(0x09);
-          CLK();
-          CLK();
+          CLK(2);
           Data_Bus_Direction_8086_IN();
           IRQ1_Flag = false;
           digitalWrite(PIN_INTR, LOW);
@@ -490,8 +444,7 @@ static void Start_System_Bus_86() {
         case 0x03:
           Data_Bus_Direction_8086_OUT();
           Write_To_Data_Port_0_7(0x08);
-          CLK();
-          CLK();
+          CLK(2);
           Data_Bus_Direction_8086_IN();
           IRQ0_Flag = false;
           break;
@@ -509,7 +462,7 @@ static void Start_System_Bus_86() {
 }
 
 // System Bus decoder
-void Start_System_Bus(int Processor) {
+void Start_System_Bus(int32_t Processor) {
   if (Processor == 88) {
     Start_System_Bus_88();
   }
@@ -518,46 +471,46 @@ void Start_System_Bus(int Processor) {
   }
 }
 
-void Write_Memory_Array(unsigned long long int Address, char code_for_8088[],
-  int Length) {
-  for (int i = 0; i < Length; i++) {
+void Write_Memory_Array(uint64_t Address, char code_for_8088[],
+  int32_t Length) {
+  for (int32_t i = 0; i < Length; i++) {
     RAM[Address] = code_for_8088[i];
     Address++;
   }
 }
 
-void Read_Memory_Array(unsigned long long int Address, char *char_Array,
-  int Length) {
-  for (int i = 0; i < Length; ++i) {
+void Read_Memory_Array(uint64_t Address, char *char_Array,
+  int32_t Length) {
+  for (int32_t i = 0; i < Length; ++i) {
     char_Array[i] = RAM[Address];
     Address++;
   }
 }
 
-void Write_Memory_Byte(unsigned long long int Address, char byte_for_8088) {
+void Write_Memory_Byte(uint64_t Address, char byte_for_8088) {
   RAM[Address] = byte_for_8088;
 }
 
-char Read_Memory_Byte(unsigned long long int Address) {
+char Read_Memory_Byte(uint64_t Address) {
   return RAM[Address];
 }
 
-void Write_Memory_Word(unsigned long long int Address,
-  unsigned short int word_for_8088) {
+void Write_Memory_Word(uint64_t Address,
+  uint16_t word_for_8088) {
   RAM[Address] = word_for_8088;
   RAM[Address + 1] = word_for_8088 >> 8;
 }
 
-void Write_IO_Byte(unsigned long long int Address, char byte_for_8088) {
+void Write_IO_Byte(uint64_t Address, char byte_for_8088) {
   IO[Address] = byte_for_8088;
 }
 
-char Read_IO_Byte(unsigned long long int Address) {
+char Read_IO_Byte(uint64_t Address) {
   return IO[Address];
 }
 
-void Write_IO_Word(unsigned long long int Address,
-  unsigned short int word_for_8088) {
+void Write_IO_Word(uint64_t Address,
+  uint16_t word_for_8088) {
   IO[Address] = word_for_8088;
   IO[Address + 1] = word_for_8088 >> 8;
 }
@@ -565,45 +518,37 @@ void Write_IO_Word(unsigned long long int Address,
 // Resest the x86
 void Reset() {
   digitalWrite(PIN_RESET, HIGH);
-  CLK();
-  CLK();
-  CLK();
-  CLK();
-  CLK();
-  CLK();
-  CLK();
-  CLK();
+  CLK(8);
   digitalWrite(PIN_RESET, LOW);
 }
 
-void Start(int Processor) {
+void Start(int32_t Processor) {
   // Sets up Ports
   Setup();
   // Resets the x86
   Reset();
   // Starts the x86 system bus in a thread
-  thread System_Bus(Start_System_Bus, Processor);
+  std::thread System_Bus(Start_System_Bus, Processor);
   // Detach the thread to continue in the program
   System_Bus.detach();
 }
 
-void Load_Bios(string Bios_file) {
-  std::ifstream MemoryFile;            // New ifstream
-  MemoryFile.open(Bios_file);          // Open Rom.bin
-  MemoryFile.seekg(0, ios::end);       // Find the end of the file
-  int FileSize = MemoryFile.tellg();   // Get the size of the file
-  MemoryFile.seekg(0, MemoryFile.beg); // Start reading at the begining
-  char Rom[FileSize];             // New char array the size of the rom file
-  MemoryFile.read(Rom, FileSize); // Read the file
-  MemoryFile.close();             // Close the file
+void Load_Bios(std::string Bios_file) {
+  std::ifstream MemoryFile;               // New ifstream
+  MemoryFile.open(Bios_file);             // Open Rom.bin
+  MemoryFile.seekg(0, std::ios::end);     // Find the end of the file
+  int32_t FileSize = MemoryFile.tellg();  // Get the size of the file
+  MemoryFile.seekg(0, MemoryFile.beg);    // Start reading at the begining
+  char Rom[FileSize];                     // New char array the size of the rom file
+  MemoryFile.read(Rom, FileSize);         // Read the file
+  MemoryFile.close();                     // Close the file
 
   // Jump code to be written to 0xFFFFF, =JMP FAR 0xF000:0X0100
   char FFFF0[] = { 0XEA, 0X00, 0X01, 0X00, 0XF8, 'E', 'M', ' ',
                   '0',  '4',  '/',  '1',  '0',  '/', '2', '0' };
   Write_Memory_Array(0xFFFF0, FFFF0, sizeof(FFFF0)); // Jump Code
   Write_Memory_Array(0xF8000, Rom, sizeof(Rom));     // The Rom file
-  Write_Memory_Byte(0xF80FF,
-    0xFF); // Make sure STOP byte is not zero 0x00 = Stop
+  Write_Memory_Byte(0xF80FF, 0xFF); // Make sure STOP byte is not zero 0x00 = Stop
   Write_Memory_Byte(0xF8000, 0xFF); // Make sure int13 command port is 0xFF
   Write_Memory_Byte(0xF80F0, 0x03); // Video mode
 

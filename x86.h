@@ -1,5 +1,13 @@
-#ifndef X86_H
-#define X86_H
+#pragma once
+
+#include <string>
+#include <thread>
+#include <fstream>
+#include <cstdint>
+
+#include <unistd.h>
+
+#include <wiringPi.h>
 
 #define V20 	88
 #define V30 	86 
@@ -37,34 +45,26 @@
 #define A18   4 
 #define A19   5
 
-#include <wiringPi.h>
-#include <string>
-#include <thread>
-#include <unistd.h>
-#include <fstream> 
+//using namespace std;
 
-using namespace std;
-
-static bool Stop_Flag;
-
+extern bool Stop_Flag;
 
 void Reset();	
-void Start(int Processor);
-void Load_Bios(string Bios_file);
-//Memory
-void Write_Memory_Array(unsigned long long int Address, char code_for_8088[], int Length);
-void Read_Memory_Array(unsigned long long int Address, char* char_Array, int Length);
-void Write_Memory_Byte(unsigned long long int Address, char byte_for_8088);
-char Read_Memory_Byte(unsigned long long int Address);		
-void Write_Memory_Word(unsigned long long int Address, unsigned short int word_for_8088);
-//IO
+void Start(int32_t Processor);
+void Load_Bios(std::string Bios_file);
 
-void Write_IO_Byte(unsigned long long int Address, char byte_for_8088);
-char Read_IO_Byte(unsigned long long int Address);
-void Write_IO_Word(unsigned long long int Address, unsigned short int word_for_8088);
+//Memory
+void Write_Memory_Array(uint64_t Address, char code_for_8088[], int32_t Length);
+void Read_Memory_Array(uint64_t Address, char* char_Array, int32_t Length);
+void Write_Memory_Byte(uint64_t Address, char byte_for_8088);
+char Read_Memory_Byte(uint64_t Address);		
+void Write_Memory_Word(uint64_t Address, uint16_t word_for_8088);
+
+//IO
+void Write_IO_Byte(uint64_t Address, char byte_for_8088);
+char Read_IO_Byte(uint64_t Address);
+void Write_IO_Word(uint64_t Address, uint16_t word_for_8088);
 
 //INT
-
 void IRQ0();
 void IRQ1();
-#endif

@@ -11,8 +11,9 @@ void System_Timer()
       IRQ0();
    }
 }
+
 void Start_System_Timer()
 {
-   thread system_timer(System_Timer);
+   std::thread system_timer(System_Timer);
    system_timer.detach();
 }
