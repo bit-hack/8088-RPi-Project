@@ -1,11 +1,14 @@
 //Compiler
 //g++ pi86.cpp x86.cpp vga.cpp font.h timer.cpp drives.cpp keycodes.h -o pi86 `sdl2-config --cflags --libs` -pthread -lwiringPi
 
-#include "SDL.h"
 #include <stdio.h>
 #include <fstream> 
-#include <unistd.h>
 #include <thread>
+
+#include <unistd.h>
+
+#include <SDL2/SDL.h>
+
 #include "x86.h"
 #include "font.h"
 #include "vga.h"

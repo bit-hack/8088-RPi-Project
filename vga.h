@@ -1,10 +1,12 @@
 #ifndef VGA_H
 #define VGA_H
 
-#include "x86.h"
-#include "SDL.h"
-#include "font.h"
 #include <thread>
+
+#include <SDL2/SDL.h>
+
+#include "x86.h"
+#include "font.h"
 
 using namespace std;
 
