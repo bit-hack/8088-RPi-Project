@@ -1,10 +1,11 @@
 #include "x86.h"
 #include "gpio.h"
 
-unsigned char RAM[0x100000];
-unsigned char IO[0x10000];
-bool IRQ0_Flag = 0;
-bool IRQ1_Flag = 0;
+static uint8_t RAM[0x100000];
+static uint8_t IO[0x10000];
+static bool    IRQ0_Flag;
+static bool    IRQ1_Flag;
+static int32_t total_cycles;
 
 void IRQ0() {
   IRQ0_Flag = true;
@@ -205,6 +206,7 @@ char Read_From_Data_Port_8_15() {
 
 // Clicks the CLK pin
 static void CLK(uint32_t cycles=1) {
+  total_cycles -= cycles;
   while (cycles--) {
     for (uint32_t i=0; i<12; ++i) {
       gpioLevelSet(PIN_CLK, GPIO_LEVEL_HIGH);
@@ -216,7 +218,7 @@ static void CLK(uint32_t cycles=1) {
 }
 
 // Sets up Raspberry PI pins in the begining
-bool Setup() {
+static bool Setup() {
   Stop_Flag = false;
   if (!gpio_init()) {
     return false;
@@ -259,8 +261,8 @@ bool Setup() {
   return true;
 }
 
-static void Start_System_Bus_88() {
-  while (Stop_Flag != true) {
+static void CPU_Clock_V20() {
+  while (Stop_Flag != true && total_cycles > 0) {
     CLK();  // -> T1
     // wait for ALE to be asserted
     if (gpioLevelGet(PIN_ALE) != 1) {
@@ -297,8 +299,8 @@ static void Start_System_Bus_88() {
     // Write IO
     case 0x07:
       IO[Address] = Read_From_Data_Port_0_7();
-      printf("Write IO %#X, ", Address);
-      printf("Data %#X \n", Read_From_Data_Port_0_7());
+      //printf("Write IO %#X, ", Address);
+      //printf("Data %#X \n", Read_From_Data_Port_0_7());
       CLK();  // -> T3
       CLK();  // -> T4
       break;
@@ -343,10 +345,10 @@ static void Start_System_Bus_88() {
   }
 }
 
-static void Start_System_Bus_86() {
+static void CPU_Clock_V30() {
   int32_t Address;
   char Memory_IO_Bank;
-  while (Stop_Flag != true) {
+  while (Stop_Flag != true && total_cycles > 0) {
     CLK();
     if (gpioLevelGet(PIN_ALE) == 1) {
       Address = Read_Address();
@@ -466,13 +468,31 @@ static void Start_System_Bus_86() {
 }
 
 // System Bus decoder
-void Start_System_Bus(int32_t Processor) {
-  if (Processor == 88) {
-    Start_System_Bus_88();
+void CPU_Clock(int32_t type, int32_t cycles) {
+
+#define PROFILE 1
+
+#if PROFILE
+  const auto start = clock();
+#endif // PROFILE
+
+  total_cycles += cycles;
+  if (type == CPU_TYPE_V20) {
+    CPU_Clock_V20();
   }
-  if (Processor == 86) {
-    Start_System_Bus_86();
+  if (type == CPU_TYPE_V30) {
+    CPU_Clock_V30();
   }
+
+#if PROFILE
+  const auto end = clock();
+  const double secs = double(end - start) / double(CLOCKS_PER_SEC);
+  printf("%f SEC\n", secs);
+
+  const double ips = double(cycles) / double(secs);
+  printf("%f IPS\n", ips);
+
+#endif // PROFILE
 }
 
 void Write_Memory_Array(uint64_t Address, char code_for_8088[],
@@ -520,27 +540,23 @@ void Write_IO_Word(uint64_t Address,
 }
 
 // Resest the x86
-void Reset() {
+void CPU_Reset() {
   gpioLevelSet(PIN_RESET, GPIO_LEVEL_HIGH);
   CLK(8);
   gpioLevelSet(PIN_RESET, GPIO_LEVEL_LOW);
 }
 
-bool Start(int32_t Processor) {
+bool CPU_Start() {
   // Sets up Ports
   if (!Setup()) {
     return false;
   }
   // Resets the x86
-  Reset();
-  // Starts the x86 system bus in a thread
-  std::thread System_Bus(Start_System_Bus, Processor);
-  // Detach the thread to continue in the program
-  System_Bus.detach();
+  CPU_Reset();
   return true;
 }
 
-void Load_Bios(std::string Bios_file) {
+void CPU_Load_Bios(std::string Bios_file) {
   std::ifstream MemoryFile;               // New ifstream
   MemoryFile.open(Bios_file);             // Open Rom.bin
   MemoryFile.seekg(0, std::ios::end);     // Find the end of the file

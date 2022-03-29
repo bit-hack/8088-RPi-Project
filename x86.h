@@ -8,8 +8,8 @@
 #include <unistd.h>
 
 
-#define V20 	88
-#define V30 	86 
+#define CPU_TYPE_V20 88
+#define CPU_TYPE_V30 86
 
 #define PIN_CLK   29
 #define PIN_RESET 27
@@ -46,22 +46,25 @@
 
 extern bool Stop_Flag;
 
-void Reset();	
-bool Start(int32_t Processor);
-void Load_Bios(std::string Bios_file);
+void CPU_Reset();	
+bool CPU_Start();
+void CPU_Load_Bios(std::string Bios_file);
 
 //Memory
 void Write_Memory_Array(uint64_t Address, char code_for_8088[], int32_t Length);
-void Read_Memory_Array(uint64_t Address, char* char_Array, int32_t Length);
-void Write_Memory_Byte(uint64_t Address, char byte_for_8088);
-char Read_Memory_Byte(uint64_t Address);		
-void Write_Memory_Word(uint64_t Address, uint16_t word_for_8088);
+void Read_Memory_Array (uint64_t Address, char* char_Array, int32_t Length);
+void Write_Memory_Byte (uint64_t Address, char byte_for_8088);
+char Read_Memory_Byte  (uint64_t Address);		
+void Write_Memory_Word (uint64_t Address, uint16_t word_for_8088);
 
 //IO
 void Write_IO_Byte(uint64_t Address, char byte_for_8088);
-char Read_IO_Byte(uint64_t Address);
+char Read_IO_Byte (uint64_t Address);
 void Write_IO_Word(uint64_t Address, uint16_t word_for_8088);
 
 //INT
 void IRQ0();
 void IRQ1();
+
+// clock the processor
+void CPU_Clock(int32_t type, int32_t cycles);
