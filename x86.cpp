@@ -1,4 +1,5 @@
 #include "x86.h"
+#include "gpio.h"
 
 unsigned char RAM[0x100000];
 unsigned char IO[0x10000];
@@ -7,17 +8,16 @@ bool IRQ1_Flag = 0;
 
 void IRQ0() {
   IRQ0_Flag = true;
-  digitalWrite(PIN_INTR, HIGH);
+  gpioLevelSet(PIN_INTR, GPIO_LEVEL_HIGH);
 }
 
 void IRQ1() {
   IRQ1_Flag = true;
-  digitalWrite(PIN_INTR, HIGH);
+  gpioLevelSet(PIN_INTR, GPIO_LEVEL_HIGH);
 }
 
 char Read_Interrupts() {
-  char intr = IRQ0_Flag;
-  intr = intr + (IRQ1_Flag << 1);
+  char intr = IRQ0_Flag + (IRQ1_Flag << 1);
   return intr;
 }
 
@@ -27,26 +27,26 @@ char Read_Interrupts() {
 
 int32_t Read_Address() {
   int32_t Address = 0;
-  Address |= digitalRead(AD0) << 0;
-  Address |= digitalRead(AD1) << 1;
-  Address |= digitalRead(AD2) << 2;
-  Address |= digitalRead(AD3) << 3;
-  Address |= digitalRead(AD4) << 4;
-  Address |= digitalRead(AD5) << 5;
-  Address |= digitalRead(AD6) << 6;
-  Address |= digitalRead(AD7) << 7;
-  Address |= digitalRead(A8)  << 8;
-  Address |= digitalRead(A9)  << 9;
-  Address |= digitalRead(A10) << 10;
-  Address |= digitalRead(A11) << 11;
-  Address |= digitalRead(A12) << 12;
-  Address |= digitalRead(A13) << 13;
-  Address |= digitalRead(A14) << 14;
-  Address |= digitalRead(A15) << 15;
-  Address |= digitalRead(A16) << 16;
-  Address |= digitalRead(A17) << 17;
-  Address |= digitalRead(A18) << 18;
-  Address |= digitalRead(A19) << 19;
+  Address |= gpioLevelGet(AD0) << 0;
+  Address |= gpioLevelGet(AD1) << 1;
+  Address |= gpioLevelGet(AD2) << 2;
+  Address |= gpioLevelGet(AD3) << 3;
+  Address |= gpioLevelGet(AD4) << 4;
+  Address |= gpioLevelGet(AD5) << 5;
+  Address |= gpioLevelGet(AD6) << 6;
+  Address |= gpioLevelGet(AD7) << 7;
+  Address |= gpioLevelGet(A8)  << 8;
+  Address |= gpioLevelGet(A9)  << 9;
+  Address |= gpioLevelGet(A10) << 10;
+  Address |= gpioLevelGet(A11) << 11;
+  Address |= gpioLevelGet(A12) << 12;
+  Address |= gpioLevelGet(A13) << 13;
+  Address |= gpioLevelGet(A14) << 14;
+  Address |= gpioLevelGet(A15) << 15;
+  Address |= gpioLevelGet(A16) << 16;
+  Address |= gpioLevelGet(A17) << 17;
+  Address |= gpioLevelGet(A18) << 18;
+  Address |= gpioLevelGet(A19) << 19;
   return Address;
 }
 
@@ -74,132 +74,132 @@ static char Read_Control_Bus() {
   // 1      1       1      = 7    Write IO
 
   char Control_Bus = 0;
-  Control_Bus |= digitalRead(PIN_DTR)  << 0;
-  Control_Bus |= digitalRead(PIN_IO_M) << 1;
-  Control_Bus |= digitalRead(PIN_INTA) << 2;
+  Control_Bus |= gpioLevelGet(PIN_DTR)  << 0;
+  Control_Bus |= gpioLevelGet(PIN_IO_M) << 1;
+  Control_Bus |= gpioLevelGet(PIN_INTA) << 2;
   return Control_Bus;
 }
 
 // Reads the selected Memory Bank, High/Low 8086 only
 char Read_Memory_Bank() {
   char Memory_Bank = 0;
-  Memory_Bank |= digitalRead(AD0)     << 0;
-  Memory_Bank |= digitalRead(PIN_BHE) << 1;
+  Memory_Bank |= gpioLevelGet(AD0)     << 0;
+  Memory_Bank |= gpioLevelGet(PIN_BHE) << 1;
   return Memory_Bank;
 }
 
 // Sets the Data Port direction for read and writes
 void Data_Bus_Direction_8088_IN() {
-  pinMode(AD0, INPUT);
-  pinMode(AD1, INPUT);
-  pinMode(AD2, INPUT);
-  pinMode(AD3, INPUT);
-  pinMode(AD4, INPUT);
-  pinMode(AD5, INPUT);
-  pinMode(AD6, INPUT);
-  pinMode(AD7, INPUT);
+  gpioDirSet(AD0, GPIO_DIR_IN);
+  gpioDirSet(AD1, GPIO_DIR_IN);
+  gpioDirSet(AD2, GPIO_DIR_IN);
+  gpioDirSet(AD3, GPIO_DIR_IN);
+  gpioDirSet(AD4, GPIO_DIR_IN);
+  gpioDirSet(AD5, GPIO_DIR_IN);
+  gpioDirSet(AD6, GPIO_DIR_IN);
+  gpioDirSet(AD7, GPIO_DIR_IN);
 }
 
 void Data_Bus_Direction_8088_OUT() {
-  pinMode(AD0, OUTPUT);
-  pinMode(AD1, OUTPUT);
-  pinMode(AD2, OUTPUT);
-  pinMode(AD3, OUTPUT);
-  pinMode(AD4, OUTPUT);
-  pinMode(AD5, OUTPUT);
-  pinMode(AD6, OUTPUT);
-  pinMode(AD7, OUTPUT);
+  gpioDirSet(AD0, GPIO_DIR_OUT);
+  gpioDirSet(AD1, GPIO_DIR_OUT);
+  gpioDirSet(AD2, GPIO_DIR_OUT);
+  gpioDirSet(AD3, GPIO_DIR_OUT);
+  gpioDirSet(AD4, GPIO_DIR_OUT);
+  gpioDirSet(AD5, GPIO_DIR_OUT);
+  gpioDirSet(AD6, GPIO_DIR_OUT);
+  gpioDirSet(AD7, GPIO_DIR_OUT);
 }
 
 void Data_Bus_Direction_8086_IN() {
-  pinMode(AD0, INPUT);
-  pinMode(AD1, INPUT);
-  pinMode(AD2, INPUT);
-  pinMode(AD3, INPUT);
-  pinMode(AD4, INPUT);
-  pinMode(AD5, INPUT);
-  pinMode(AD6, INPUT);
-  pinMode(AD7, INPUT);
+  gpioDirSet(AD0, GPIO_DIR_IN);
+  gpioDirSet(AD1, GPIO_DIR_IN);
+  gpioDirSet(AD2, GPIO_DIR_IN);
+  gpioDirSet(AD3, GPIO_DIR_IN);
+  gpioDirSet(AD4, GPIO_DIR_IN);
+  gpioDirSet(AD5, GPIO_DIR_IN);
+  gpioDirSet(AD6, GPIO_DIR_IN);
+  gpioDirSet(AD7, GPIO_DIR_IN);
 
-  pinMode(A8,  INPUT);
-  pinMode(A9,  INPUT);
-  pinMode(A10, INPUT);
-  pinMode(A11, INPUT);
-  pinMode(A12, INPUT);
-  pinMode(A13, INPUT);
-  pinMode(A14, INPUT);
-  pinMode(A15, INPUT);
+  gpioDirSet(A8,  GPIO_DIR_IN);
+  gpioDirSet(A9,  GPIO_DIR_IN);
+  gpioDirSet(A10, GPIO_DIR_IN);
+  gpioDirSet(A11, GPIO_DIR_IN);
+  gpioDirSet(A12, GPIO_DIR_IN);
+  gpioDirSet(A13, GPIO_DIR_IN);
+  gpioDirSet(A14, GPIO_DIR_IN);
+  gpioDirSet(A15, GPIO_DIR_IN);
 }
 
 void Data_Bus_Direction_8086_OUT() {
-  pinMode(AD0, OUTPUT);
-  pinMode(AD1, OUTPUT);
-  pinMode(AD2, OUTPUT);
-  pinMode(AD3, OUTPUT);
-  pinMode(AD4, OUTPUT);
-  pinMode(AD5, OUTPUT);
-  pinMode(AD6, OUTPUT);
-  pinMode(AD7, OUTPUT);
+  gpioDirSet(AD0, GPIO_DIR_OUT);
+  gpioDirSet(AD1, GPIO_DIR_OUT);
+  gpioDirSet(AD2, GPIO_DIR_OUT);
+  gpioDirSet(AD3, GPIO_DIR_OUT);
+  gpioDirSet(AD4, GPIO_DIR_OUT);
+  gpioDirSet(AD5, GPIO_DIR_OUT);
+  gpioDirSet(AD6, GPIO_DIR_OUT);
+  gpioDirSet(AD7, GPIO_DIR_OUT);
 
-  pinMode(A8,  OUTPUT);
-  pinMode(A9,  OUTPUT);
-  pinMode(A10, OUTPUT);
-  pinMode(A11, OUTPUT);
-  pinMode(A12, OUTPUT);
-  pinMode(A13, OUTPUT);
-  pinMode(A14, OUTPUT);
-  pinMode(A15, OUTPUT);
+  gpioDirSet(A8,  GPIO_DIR_OUT);
+  gpioDirSet(A9,  GPIO_DIR_OUT);
+  gpioDirSet(A10, GPIO_DIR_OUT);
+  gpioDirSet(A11, GPIO_DIR_OUT);
+  gpioDirSet(A12, GPIO_DIR_OUT);
+  gpioDirSet(A13, GPIO_DIR_OUT);
+  gpioDirSet(A14, GPIO_DIR_OUT);
+  gpioDirSet(A15, GPIO_DIR_OUT);
 }
 
 // Writes Data to Data Port 0-7
 void Write_To_Data_Port_0_7(char Byte) {
-  digitalWrite(AD0, (Byte >> 0) & 1);
-  digitalWrite(AD1, (Byte >> 1) & 1);
-  digitalWrite(AD2, (Byte >> 2) & 1);
-  digitalWrite(AD3, (Byte >> 3) & 1);
-  digitalWrite(AD4, (Byte >> 4) & 1);
-  digitalWrite(AD5, (Byte >> 5) & 1);
-  digitalWrite(AD6, (Byte >> 6) & 1);
-  digitalWrite(AD7, (Byte >> 7) & 1);
+  gpioLevelSet(AD0, Byte & 0x01);
+  gpioLevelSet(AD1, Byte & 0x02);
+  gpioLevelSet(AD2, Byte & 0x04);
+  gpioLevelSet(AD3, Byte & 0x08);
+  gpioLevelSet(AD4, Byte & 0x10);
+  gpioLevelSet(AD5, Byte & 0x20);
+  gpioLevelSet(AD6, Byte & 0x40);
+  gpioLevelSet(AD7, Byte & 0x80);
 }
 
 // Writes Data to Data Port 8-15 8086 only
 void Write_To_Data_Port_8_15(char Byte) {
-  digitalWrite(A8,  (Byte >> 0) & 1);
-  digitalWrite(A9,  (Byte >> 1) & 1);
-  digitalWrite(A10, (Byte >> 2) & 1);
-  digitalWrite(A11, (Byte >> 3) & 1);
-  digitalWrite(A12, (Byte >> 4) & 1);
-  digitalWrite(A13, (Byte >> 5) & 1);
-  digitalWrite(A14, (Byte >> 6) & 1);
-  digitalWrite(A15, (Byte >> 7) & 1);
+  gpioLevelSet(A8,  Byte & 0x01);
+  gpioLevelSet(A9,  Byte & 0x02);
+  gpioLevelSet(A10, Byte & 0x04);
+  gpioLevelSet(A11, Byte & 0x08);
+  gpioLevelSet(A12, Byte & 0x10);
+  gpioLevelSet(A13, Byte & 0x20);
+  gpioLevelSet(A14, Byte & 0x40);
+  gpioLevelSet(A15, Byte & 0x80);
 }
 
 // Reads Data to Data Port 0-7
 char Read_From_Data_Port_0_7() {
   char ret = 0;
-  ret |= digitalRead(AD0) << 0;
-  ret |= digitalRead(AD1) << 1;
-  ret |= digitalRead(AD2) << 2;
-  ret |= digitalRead(AD3) << 3;
-  ret |= digitalRead(AD4) << 4;
-  ret |= digitalRead(AD5) << 5;
-  ret |= digitalRead(AD6) << 6;
-  ret |= digitalRead(AD7) << 7;
+  ret |= gpioLevelGet(AD0) << 0;
+  ret |= gpioLevelGet(AD1) << 1;
+  ret |= gpioLevelGet(AD2) << 2;
+  ret |= gpioLevelGet(AD3) << 3;
+  ret |= gpioLevelGet(AD4) << 4;
+  ret |= gpioLevelGet(AD5) << 5;
+  ret |= gpioLevelGet(AD6) << 6;
+  ret |= gpioLevelGet(AD7) << 7;
   return ret;
 }
 
 // Reads Data to Data Port 8-15 8086 only
 char Read_From_Data_Port_8_15() {
   char ret = 0;
-  ret |= digitalRead(A8)  << 0;
-  ret |= digitalRead(A9)  << 1;
-  ret |= digitalRead(A10) << 2;
-  ret |= digitalRead(A11) << 3;
-  ret |= digitalRead(A12) << 4;
-  ret |= digitalRead(A13) << 5;
-  ret |= digitalRead(A14) << 6;
-  ret |= digitalRead(A15) << 7;
+  ret |= gpioLevelGet(A8)  << 0;
+  ret |= gpioLevelGet(A9)  << 1;
+  ret |= gpioLevelGet(A10) << 2;
+  ret |= gpioLevelGet(A11) << 3;
+  ret |= gpioLevelGet(A12) << 4;
+  ret |= gpioLevelGet(A13) << 5;
+  ret |= gpioLevelGet(A14) << 6;
+  ret |= gpioLevelGet(A15) << 7;
   return ret;
 }
 
@@ -207,59 +207,63 @@ char Read_From_Data_Port_8_15() {
 static void CLK(uint32_t cycles=1) {
   while (cycles--) {
     for (uint32_t i=0; i<12; ++i) {
-      digitalWrite(PIN_CLK, HIGH);
+      gpioLevelSet(PIN_CLK, GPIO_LEVEL_HIGH);
     }
     for (uint32_t i=0; i<12; ++i) {
-      digitalWrite(PIN_CLK, LOW);
+      gpioLevelSet(PIN_CLK, GPIO_LEVEL_LOW);
     }
   }
 }
 
 // Sets up Raspberry PI pins in the begining
-void Setup() {
+bool Setup() {
   Stop_Flag = false;
-  wiringPiSetup();
+  if (!gpio_init()) {
+    return false;
+  }
 
-  pinMode(PIN_CLK,   OUTPUT);
-  pinMode(PIN_RESET, OUTPUT);
-  pinMode(PIN_ALE,   INPUT);
-  pinMode(PIN_IO_M,  INPUT);
-  pinMode(PIN_DTR,   INPUT);
-  pinMode(PIN_BHE,   INPUT);
-  pinMode(PIN_INTR,  OUTPUT);
-  pinMode(PIN_INTA,  INPUT);
+  gpioDirSet(PIN_CLK,   GPIO_DIR_OUT);
+  gpioDirSet(PIN_RESET, GPIO_DIR_OUT);
+  gpioDirSet(PIN_ALE,   GPIO_DIR_IN);
+  gpioDirSet(PIN_IO_M,  GPIO_DIR_IN);
+  gpioDirSet(PIN_DTR,   GPIO_DIR_IN);
+  gpioDirSet(PIN_BHE,   GPIO_DIR_IN);
+  gpioDirSet(PIN_INTR,  GPIO_DIR_OUT);
+  gpioDirSet(PIN_INTA,  GPIO_DIR_IN);
 
-  digitalWrite(PIN_INTR, LOW);
+  gpioLevelSet(PIN_INTR, GPIO_LEVEL_LOW);
 
-  pinMode(AD0, INPUT);
-  pinMode(AD1, INPUT);
-  pinMode(AD2, INPUT);
-  pinMode(AD3, INPUT);
-  pinMode(AD4, INPUT);
-  pinMode(AD5, INPUT);
-  pinMode(AD6, INPUT);
-  pinMode(AD7, INPUT);
+  gpioDirSet(AD0, GPIO_DIR_IN);
+  gpioDirSet(AD1, GPIO_DIR_IN);
+  gpioDirSet(AD2, GPIO_DIR_IN);
+  gpioDirSet(AD3, GPIO_DIR_IN);
+  gpioDirSet(AD4, GPIO_DIR_IN);
+  gpioDirSet(AD5, GPIO_DIR_IN);
+  gpioDirSet(AD6, GPIO_DIR_IN);
+  gpioDirSet(AD7, GPIO_DIR_IN);
 
-  pinMode(A8,  INPUT);
-  pinMode(A9,  INPUT);
-  pinMode(A10, INPUT);
-  pinMode(A11, INPUT);
-  pinMode(A12, INPUT);
-  pinMode(A13, INPUT);
-  pinMode(A14, INPUT);
-  pinMode(A15, INPUT);
+  gpioDirSet(A8,  GPIO_DIR_IN);
+  gpioDirSet(A9,  GPIO_DIR_IN);
+  gpioDirSet(A10, GPIO_DIR_IN);
+  gpioDirSet(A11, GPIO_DIR_IN);
+  gpioDirSet(A12, GPIO_DIR_IN);
+  gpioDirSet(A13, GPIO_DIR_IN);
+  gpioDirSet(A14, GPIO_DIR_IN);
+  gpioDirSet(A15, GPIO_DIR_IN);
 
-  pinMode(A16, INPUT);
-  pinMode(A17, INPUT);
-  pinMode(A18, INPUT);
-  pinMode(A19, INPUT);
+  gpioDirSet(A16, GPIO_DIR_IN);
+  gpioDirSet(A17, GPIO_DIR_IN);
+  gpioDirSet(A18, GPIO_DIR_IN);
+  gpioDirSet(A19, GPIO_DIR_IN);
+
+  return true;
 }
 
 static void Start_System_Bus_88() {
   while (Stop_Flag != true) {
     CLK();  // -> T1
     // wait for ALE to be asserted
-    if (digitalRead(PIN_ALE) != 1) {
+    if (gpioLevelGet(PIN_ALE) != 1) {
       continue;
     }
     const int32_t Address = Read_Address();
@@ -310,7 +314,7 @@ static void Start_System_Bus_88() {
         CLK(2);
         Data_Bus_Direction_8088_IN();
         IRQ0_Flag = false;
-        digitalWrite(PIN_INTR, LOW);
+        gpioLevelSet(PIN_INTR, GPIO_LEVEL_LOW);
         break;
       case 0x02:
         Data_Bus_Direction_8088_OUT();
@@ -318,7 +322,7 @@ static void Start_System_Bus_88() {
         CLK(2);
         Data_Bus_Direction_8088_IN();
         IRQ1_Flag = false;
-        digitalWrite(PIN_INTR, LOW);
+        gpioLevelSet(PIN_INTR, GPIO_LEVEL_LOW);
         break;
       case 0x03:
         Data_Bus_Direction_8088_OUT();
@@ -344,7 +348,7 @@ static void Start_System_Bus_86() {
   char Memory_IO_Bank;
   while (Stop_Flag != true) {
     CLK();
-    if (digitalRead(PIN_ALE) == 1) {
+    if (gpioLevelGet(PIN_ALE) == 1) {
       Address = Read_Address();
       Memory_IO_Bank = Read_Memory_Bank();
       CLK();
@@ -429,7 +433,7 @@ static void Start_System_Bus_86() {
           CLK(2);
           Data_Bus_Direction_8086_IN();
           IRQ0_Flag = false;
-          digitalWrite(PIN_INTR, LOW);
+          gpioLevelSet(PIN_INTR, GPIO_LEVEL_LOW);
           break;
           // Keyboard
         case 0x02:
@@ -438,7 +442,7 @@ static void Start_System_Bus_86() {
           CLK(2);
           Data_Bus_Direction_8086_IN();
           IRQ1_Flag = false;
-          digitalWrite(PIN_INTR, LOW);
+          gpioLevelSet(PIN_INTR, GPIO_LEVEL_LOW);
           break;
           // System Timer and Keyboard, System Timer is handled
         case 0x03:
@@ -517,20 +521,23 @@ void Write_IO_Word(uint64_t Address,
 
 // Resest the x86
 void Reset() {
-  digitalWrite(PIN_RESET, HIGH);
+  gpioLevelSet(PIN_RESET, GPIO_LEVEL_HIGH);
   CLK(8);
-  digitalWrite(PIN_RESET, LOW);
+  gpioLevelSet(PIN_RESET, GPIO_LEVEL_LOW);
 }
 
-void Start(int32_t Processor) {
+bool Start(int32_t Processor) {
   // Sets up Ports
-  Setup();
+  if (!Setup()) {
+    return false;
+  }
   // Resets the x86
   Reset();
   // Starts the x86 system bus in a thread
   std::thread System_Bus(Start_System_Bus, Processor);
   // Detach the thread to continue in the program
   System_Bus.detach();
+  return true;
 }
 
 void Load_Bios(std::string Bios_file) {

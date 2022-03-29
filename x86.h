@@ -7,7 +7,6 @@
 
 #include <unistd.h>
 
-#include <wiringPi.h>
 
 #define V20 	88
 #define V30 	86 
@@ -45,12 +44,10 @@
 #define A18   4 
 #define A19   5
 
-//using namespace std;
-
 extern bool Stop_Flag;
 
 void Reset();	
-void Start(int32_t Processor);
+bool Start(int32_t Processor);
 void Load_Bios(std::string Bios_file);
 
 //Memory
