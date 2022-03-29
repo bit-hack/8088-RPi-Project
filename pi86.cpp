@@ -18,7 +18,7 @@ bool Stop_Flag;
 
 
 void events_poll();
-void Up_Date_Screen(SDL_Window *Window, SDL_Renderer *Renderer);
+void Update_Screen(SDL_Window *Window, SDL_Renderer *Renderer);
 
 int main(int argc, char* argv[]) {
 
@@ -50,17 +50,16 @@ int main(int argc, char* argv[]) {
     //The bios file to load
     CPU_Load_Bios("bios.bin");
 
-    ///////////////////////////////////////////////////////////////////
-    //Change this Start(V30); 8086 or Start(V20); 8088 to set the processor
-    ///////////////////////////////////////////////////////////////////
     CPU_Start();
 
-    //Drive images a: and C:
+    // Drive images a: and C:
     Start_Drives("floppy.img", "hdd.img");
-    //Starts the system timer, IRQ0 / INT 0x08
+
+    // Starts the system timer, IRQ0 / INT 0x08
     Start_System_Timer();
 
-    thread screen_loop(Up_Date_Screen, window, renderer);		//Start screen
+    // create a thread to render the screen
+    thread screen_loop(Update_Screen, window, renderer);
 
     while (Stop_Flag != true) {
 
@@ -75,7 +74,7 @@ int main(int argc, char* argv[]) {
         events_poll();
 
         // dont burn all of the CPU cycles
-        usleep(50);
+        usleep(10);
     }
 
     screen_loop.join();
@@ -91,12 +90,13 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-void Up_Date_Screen(SDL_Window *Window, SDL_Renderer *Renderer)
+void Update_Screen(SDL_Window *Window, SDL_Renderer *Renderer)
 {
-    char Video_Memory_40x25[2000];
-    char Video_Memory_80x25[4000];
-    char Video_Memory_320x200[0x4000];
-    char Cursor_Position[2];            //Array to store cursor position
+    static char Video_Memory_40x25[2000];
+    static char Video_Memory_80x25[4000];
+    static char Video_Memory_320x200[0x4000];
+    static char Cursor_Position[2];
+
     while (!Stop_Flag)
     {
         while (Read_Memory_Byte(0x00449) == 0x00 ||
@@ -136,6 +136,8 @@ void Up_Date_Screen(SDL_Window *Window, SDL_Renderer *Renderer)
             if (Stop_Flag)
                 return;
         }
+
+        usleep(10);
     }
 }
 
