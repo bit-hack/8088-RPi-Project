@@ -1,5 +1,5 @@
 CC      = g++
-CFLAGS  = -Wall -g -pthread
+CFLAGS  = -Wall -g -pthread -O2
 LDFLAGS = -lSDL2 -lwiringPi
 FILES   = vga.cpp drives.cpp pi86.cpp timer.cpp x86.cpp gpio.cpp
 EXENAME = pi86
