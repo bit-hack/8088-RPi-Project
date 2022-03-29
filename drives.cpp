@@ -51,7 +51,7 @@ void Get_Disk_Parameters_C()
    MemoryFile.seekg (0, MemoryFile.beg);     //Moves back to the begining
    char drive[0x200];                       //Char array to hold the data only reading first sector
    MemoryFile.read(drive, sizeof(drive));  //Read MBR
-   int32_t Hidden_Sectors;
+   int32_t Hidden_Sectors = 0;
    //Locates boot partition
    if(drive[0x1BE] == 0x80){Hidden_Sectors = drive[0x1C6] + (drive[0x1C7] << 8) + (drive[0x1C8] << 16) + (drive[0x1C9] << 24);}
    else if(drive[0x1CE] == 0x80){Hidden_Sectors = drive[0x1D6] + (drive[0x1D7] << 8) + (drive[0x1D8] << 16) + (drive[0x1D9] << 24);}
