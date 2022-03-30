@@ -207,11 +207,14 @@ char Read_From_Data_Port_8_15() {
 // Clicks the CLK pin
 static void CLK(uint32_t cycles=1) {
   total_cycles -= cycles;
+
+  static const uint32_t delay = 11;
+
   while (cycles--) {
-    for (uint32_t i=0; i<12; ++i) {
+    for (uint32_t i=0; i<delay; ++i) {
       gpioLevelSet(PIN_CLK, GPIO_LEVEL_HIGH);
     }
-    for (uint32_t i=0; i<12; ++i) {
+    for (uint32_t i=0; i<delay; ++i) {
       gpioLevelSet(PIN_CLK, GPIO_LEVEL_LOW);
     }
   }
@@ -220,7 +223,7 @@ static void CLK(uint32_t cycles=1) {
 // Sets up Raspberry PI pins in the begining
 static bool Setup() {
   Stop_Flag = false;
-  if (!gpio_init()) {
+  if (!gpioInit()) {
     return false;
   }
 

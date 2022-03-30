@@ -7,5 +7,8 @@ EXENAME = pi86
 pi88: $(FILES)
 	$(CC) $(CFLAGS) $(FILES) $(LDFLAGS) -o $(EXENAME)
 
+pi88_prof: $(FILES)
+	$(CC) $(CFLAGS) -pg $(FILES) $(LDFLAGS) -o $(EXENAME)
+
 clean:
 	-rm $(EXENAME)

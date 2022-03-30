@@ -18,7 +18,7 @@ enum gpioPull {
     GPIO_PULL_UP     = 1,
 };
 
-bool      gpio_init   ();
+bool      gpioInit    ();
 void      gpioLevelSet(uint32_t pin, int level);
 gpioLevel gpioLevelGet(uint32_t pin);
 void      gpioDirSet  (uint32_t pin, gpioDir   dir);
