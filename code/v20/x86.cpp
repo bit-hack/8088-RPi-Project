@@ -1,8 +1,11 @@
 #include "x86.h"
 
+
+
 unsigned char RAM[0x100000];
 unsigned char IO [ 0x10000];
 
+bool Stop_Flag = false;
 bool IRQ0_Flag = false;
 bool IRQ1_Flag = false;
 
