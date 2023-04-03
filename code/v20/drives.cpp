@@ -126,7 +126,7 @@ void Int13() {
     if (Drive == 0x80) {
       Get_Disk_Parameters_C();
     }
-    char int13_data[0X20];
+    uint8_t int13_data[0X20] = {0};
     Read_Memory_Array(0xF8000, int13_data, 0X20);
 
     if (Int13_Command == 0x00) {
@@ -140,17 +140,18 @@ void Int13() {
     }
     if (Int13_Command == 0x02) // read
     {
-      int Cylinder = (int13_data[3] << 8) + int13_data[2];
-      int Sector = int13_data[4];
-      int Head = int13_data[5];
-      int Bytes_Per_Sector = (int13_data[0x0F] << 8) + int13_data[0x0E];
-      int Sector_Per_Track = (int13_data[0x10] & 0X3F);
-      int Head_Per_Cylinder = (int13_data[0x0D] << 8) + int13_data[0x0C];
+      int Cylinder          = (int13_data[3] << 8) | int13_data[2];
+      int Sector            =  int13_data[4];
+      int Head              =  int13_data[5];
+      int Bytes_Per_Sector  = (int13_data[0x0F] << 8) | int13_data[0x0E];
+      int Sector_Per_Track  = (int13_data[0x10] & 0X3F);
+      int Head_Per_Cylinder = (int13_data[0x0D] << 8) | int13_data[0x0C];
       int Number_Of_Sectors = int13_data[1];
-      int LBA = (Cylinder * Head_Per_Cylinder + Head) * Sector_Per_Track +
-                (Sector - 1);
-      int Buffer_Address = (int13_data[10] << 12) + (int13_data[9] << 4) +
-                           (int13_data[8] << 8) + int13_data[7];
+      int LBA               = (Cylinder * Head_Per_Cylinder + Head) * Sector_Per_Track + (Sector - 1);
+      int Buffer_Address    = (int13_data[10] << 12) +
+                              (int13_data[9]  <<  4) +
+                              (int13_data[8]  <<  8) +
+                              (int13_data[7]  <<  0);
 
       std::fstream MemoryFile; // This opens the drive img
       if (Drive == 0x00) {
@@ -160,27 +161,26 @@ void Int13() {
         MemoryFile.open(drive_C);
       }
       MemoryFile.seekg(LBA * Bytes_Per_Sector, MemoryFile.beg); // Set position
-      char drive[Number_Of_Sectors *
-                 Bytes_Per_Sector];          // Char array to hold the data
-      MemoryFile.read(drive, sizeof(drive)); // Read the file into the array
+      uint8_t drive[Number_Of_Sectors * Bytes_Per_Sector];          // Char array to hold the data
+      MemoryFile.read((char*)drive, sizeof(drive)); // Read the file into the array
       MemoryFile.close();                    // Close the file
 
       Write_Memory_Array(Buffer_Address, drive, sizeof(drive));
     }
     if (Int13_Command == 0x03) {
-      int Cylinder = (int13_data[3] << 8) + int13_data[2];
-      int Sector = int13_data[4];
-      int Head = int13_data[5];
-      int Bytes_Per_Sector = (int13_data[0x0F] << 8) + int13_data[0x0E];
-      int Sector_Per_Track = (int13_data[0x10] & 0X3F);
-      int Head_Per_Cylinder = (int13_data[0x0D] << 8) + int13_data[0x0C];
+      int Cylinder          = (int13_data[3] << 8) | int13_data[2];
+      int Sector            = int13_data[4];
+      int Head              = int13_data[5];
+      int Bytes_Per_Sector  = (int13_data[0x0F] << 8) | int13_data[0x0E];
+      int Sector_Per_Track  = (int13_data[0x10] & 0X3F);
+      int Head_Per_Cylinder = (int13_data[0x0D] << 8) | int13_data[0x0C];
       int Number_Of_Sectors = int13_data[1];
-      int LBA = (Cylinder * Head_Per_Cylinder + Head) * Sector_Per_Track +
-                (Sector - 1);
-      int Buffer_Address = (int13_data[10] << 12) + (int13_data[9] << 4) +
-                           (int13_data[8] << 8) + int13_data[7];
-      char drive[Number_Of_Sectors *
-                 Bytes_Per_Sector]; // Char array to hold the data
+      int LBA               = (Cylinder * Head_Per_Cylinder + Head) * Sector_Per_Track + (Sector - 1);
+      int Buffer_Address    = (int13_data[10] << 12) +
+                              (int13_data[9]  << 4)  +
+                              (int13_data[8]  << 8)  +
+                              (int13_data[7]  << 0);
+      uint8_t drive[Number_Of_Sectors * Bytes_Per_Sector]; // Char array to hold the data
 
       Read_Memory_Array(Buffer_Address, drive, sizeof(drive));
 
@@ -191,9 +191,8 @@ void Int13() {
       if (Drive == 0x80) {
         MemoryFile.open(drive_C);
       }
-      MemoryFile.seekp(LBA * Bytes_Per_Sector,
-                       MemoryFile.beg);       // Sets position to write to
-      MemoryFile.write(drive, sizeof(drive)); // Writes only new data
+      MemoryFile.seekp(LBA * Bytes_Per_Sector, MemoryFile.beg);       // Sets position to write to
+      MemoryFile.write((char*)drive, sizeof(drive)); // Writes only new data
       MemoryFile.close();                     // Close img
     }
     if (Int13_Command == 0x08) // PARAMETERS

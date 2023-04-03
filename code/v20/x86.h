@@ -1,6 +1,6 @@
-#ifndef X86_H
-#define X86_H
+#pragma once
 
+#include <cstdint>
 #include <fstream>
 #include <string>
 #include <thread>
@@ -44,20 +44,24 @@ extern bool Stop_Flag;
 
 using namespace std;
 
-void Reset();
-void Start(int Processor);
-void Load_Bios(string Bios_file);
+void pi86Reset   (void);
+void pi86Start   (int Processor);
+void pi86LoadBios(const string &Bios_file);
+
 // Memory
-void Write_Memory_Array(unsigned long long int Address, char code_for_8088[], int Length);
-void Read_Memory_Array (unsigned long long int Address, char *char_Array, int Length);
-void Write_Memory_Byte (unsigned long long int Address, char byte_for_8088);
-char Read_Memory_Byte  (unsigned long long int Address);
-void Write_Memory_Word (unsigned long long int Address, unsigned short int word_for_8088);
+void    Write_Memory_Array(uint32_t addr, const uint8_t *src, uint32_t size);
+void    Read_Memory_Array (uint32_t addr, uint8_t *dst, uint32_t size);
+void    Write_Memory_Byte (uint32_t addr, uint8_t data);
+uint8_t Read_Memory_Byte  (uint32_t addr);
+void    Write_Memory_Word (uint32_t addr, uint16_t data);
+
 // IO
-void Write_IO_Byte(unsigned long long int Address, char byte_for_8088);
-char Read_IO_Byte (unsigned long long int Address);
-void Write_IO_Word(unsigned long long int Address, unsigned short int word_for_8088);
+void    Write_IO_Byte(uint32_t addr, uint8_t data);
+uint8_t Read_IO_Byte (uint32_t addr);
+void    Write_IO_Word(uint32_t addr, uint16_t data);
+
 // INT
-void IRQ0();
-void IRQ1();
-#endif
+void IRQ0(void);
+void IRQ1(void);
+
+uint8_t *memPtr(uint32_t addr);

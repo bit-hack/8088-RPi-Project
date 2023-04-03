@@ -34,12 +34,12 @@ int main(int argc, char *argv[]) {
   // this makes it full screen
   // SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
   // The bios file to load
-  Load_Bios("bios.bin");
+  pi86LoadBios("bios.bin");
 
   ///////////////////////////////////////////////////////////////////
   // Change this Start(V30); 8086 or Start(V20); 8088 to set the processor
   ///////////////////////////////////////////////////////////////////
-  Start(V20);
+  pi86Start(V20);
 
   // Drive images a: and C:
   Start_Drives("floppy.img", "hdd.img");
@@ -72,11 +72,11 @@ int main(int argc, char *argv[]) {
 }
 
 void Up_Date_Screen(SDL_Window *Window, SDL_Renderer *Renderer) {
-  char Vblank[0x4000];
-  char Video_Memory_40x25[2000];
-  char Video_Memory_80x25[4000];
-  char Video_Memory_320x200[0x4000];
-  char Cursor_Position[2]; // Array to store cursor position
+  uint8_t Vblank[0x4000];
+  uint8_t Video_Memory_40x25[2000];
+  uint8_t Video_Memory_80x25[4000];
+  uint8_t Video_Memory_320x200[0x4000];
+  uint8_t Cursor_Position[2]; // Array to store cursor position
   while (Stop_Flag != true) {
 
     while (Stop_Flag != true & Read_Memory_Byte(0x00449) == 0x00 |
@@ -226,7 +226,7 @@ void keyboard() {
         // KMOD_LCTRL
         case 0x0040:
           if (e.key.keysym.scancode == 0x2A) {
-            Reset();
+            pi86Reset();
           }
           Insert_Key(character_codes_ctrl[e.key.keysym.scancode],
                      scan_codes[e.key.keysym.scancode]);
