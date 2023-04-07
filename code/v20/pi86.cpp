@@ -10,6 +10,7 @@
 #include <thread>
 #include <unistd.h>
 
+
 using namespace std;
 
 void keyboard();
@@ -49,17 +50,22 @@ int main(int argc, char *argv[]) {
   thread keyboard_loop(keyboard);                       // Start Keyboard
   thread screen_loop(Up_Date_Screen, window, renderer); // Start screen
 
-  while (Stop_Flag != true) {
+  while (pi86Running()) {
     usleep(50);                            // Give the 8088 time to run
-    if (Read_Memory_Byte(0xF80FF) == 0X00) // Check for stop command
+    if (pi86MemRead8(0xF80FF) == 0X00) // Check for stop command
     {
-      Stop_Flag = true;
+      pi86Stop();
       break; // If stop = 0x00 then stop threads
     }
   }
 
+  printf("%s shutdown\n", __func__);
+
+  printf("%s joining keyboard_loop\n", __func__);
   keyboard_loop.join();
+  printf("%s joining screen_loop\n", __func__);
   screen_loop.join();
+  printf("%s done\n", __func__);
   // this is for returning from full screen
   // SDL_SetWindowFullscreen(window, 0);
 
@@ -76,69 +82,69 @@ void Up_Date_Screen(SDL_Window *Window, SDL_Renderer *Renderer) {
   uint8_t Video_Memory_40x25[2000];
   uint8_t Video_Memory_80x25[4000];
   uint8_t Video_Memory_320x200[0x4000];
-  uint8_t Cursor_Position[2]; // Array to store cursor position
-  while (Stop_Flag != true) {
+  uint8_t Cursor_Position[2];
 
-    while (Stop_Flag != true & Read_Memory_Byte(0x00449) == 0x00 |
-           Stop_Flag != true & Read_Memory_Byte(0x00449) == 0x01) {
-      Read_Memory_Array(0xB8000, Video_Memory_40x25, 2000);
-      Read_Memory_Array(0x00450, Cursor_Position, 2);
+  while (pi86Running()) {
+
+    if (pi86MemRead8(0x00449) == 0x00 |
+           pi86MemRead8(0x00449) == 0x01) {
+      pi86MemReadPtr(0xB8000, Video_Memory_40x25, 2000);
+      pi86MemReadPtr(0x00450, Cursor_Position, 2);
       Mode_0_40x25(Renderer, Video_Memory_40x25, Cursor_Position);
-      // SDL_Delay(10);
     }
 
-    while (Stop_Flag != true & Read_Memory_Byte(0x00449) == 0x02 |
-           Stop_Flag != true & Read_Memory_Byte(0x00449) == 0x03) {
-      Read_Memory_Array(0xB8000, Video_Memory_80x25, 4000);
-      Read_Memory_Array(0x00450, Cursor_Position, 2);
+    if (pi86MemRead8(0x00449) == 0x02 |
+           pi86MemRead8(0x00449) == 0x03) {
+      pi86MemReadPtr(0xB8000, Video_Memory_80x25, 4000);
+      pi86MemReadPtr(0x00450, Cursor_Position, 2);
       Mode_2_80x25(Renderer, Video_Memory_80x25, Cursor_Position);
-      // SDL_Delay(10);
     }
 
-    while (Stop_Flag != true & Read_Memory_Byte(0x00449) == 0x04 &
-           Read_Memory_Byte(0x00466) == 0x00) {
-      Read_Memory_Array(0xB8000, Video_Memory_320x200, 0x4000);
+    if (pi86MemRead8(0x00449) == 0x04 &
+           pi86MemRead8(0x00466) == 0x00) {
+      pi86MemReadPtr(0xB8000, Video_Memory_320x200, 0x4000);
       Graphics_Mode_320_200_Palette_0(Renderer, Video_Memory_320x200);
-      // SDL_Delay(10);
     }
 
-    while (Stop_Flag != true & Read_Memory_Byte(0x00449) == 0x04 &
-           Read_Memory_Byte(0x00466) == 0x01) {
-      Read_Memory_Array(0xB8000, Video_Memory_320x200, 0x4000);
+    if (pi86MemRead8(0x00449) == 0x04 &
+           pi86MemRead8(0x00466) == 0x01) {
+      pi86MemReadPtr(0xB8000, Video_Memory_320x200, 0x4000);
       Graphics_Mode_320_200_Palette_1(Renderer, Video_Memory_320x200);
-      // SDL_Delay(10);
     }
   }
+  
+  printf("%s shutdown\n", __func__);
 }
 
 void Insert_Key(char character_code, char scan_code) // Interrupt_9
 {
-  char Key_Buffer_Tail = Read_Memory_Byte(
+  char Key_Buffer_Tail = pi86MemRead8(
       0x041C); // Read the position of the keyboard buffer tail pointer
-  Write_Memory_Byte(0x400 + Key_Buffer_Tail,
+  pi86MemWrite8(0x400 + Key_Buffer_Tail,
                     character_code); // Write Character code at the keyboard
                                      // buffer tail pointer
-  Write_Memory_Byte(
+  pi86MemWrite8(
       0x401 + Key_Buffer_Tail,
       scan_code); // Write scan code at the keyboard buffer tail pointer
   Key_Buffer_Tail =
       Key_Buffer_Tail + 2; // Add 2 to the keyboard buffer tail pointer
   if (Key_Buffer_Tail >=
-      Read_Memory_Byte(0x0482)) // Check to see if the keyboard buffer tail
+      pi86MemRead8(0x0482)) // Check to see if the keyboard buffer tail
                                 // pointer is at the end of the buffer
   {
-    Key_Buffer_Tail = Read_Memory_Byte(0x0480);
+    Key_Buffer_Tail = pi86MemRead8(0x0480);
   }
-  Write_Memory_Byte(
+  pi86MemWrite8(
       0x041C, Key_Buffer_Tail); // Write the new keyboard buffer tail pointer
 }
+
 void keyboard() {
   SDL_Event e;
 
-  while (Stop_Flag != true) {
+  while (pi86Running()) {
     if (SDL_PollEvent(&e)) {
       if (e.type == SDL_QUIT) {
-        Stop_Flag = true;
+        pi86Stop();
         break;
       }
       if (e.type == SDL_KEYDOWN) {
@@ -239,7 +245,7 @@ void keyboard() {
         // KMOD_LALT
         case 0x0100:
           if (e.key.keysym.scancode == 0x2A) {
-            Write_Memory_Byte(0x00449, 0x02);
+            pi86MemWrite8(0x00449, 0x02);
           }
           Insert_Key(character_codes_ctrl[e.key.keysym.scancode],
                      scan_codes[e.key.keysym.scancode]);
@@ -251,13 +257,16 @@ void keyboard() {
           break;
         }
 
-        Write_IO_Byte(0x0060, scan_codes[e.key.keysym.scancode]);
+        pi86IoWrite8(0x0060, scan_codes[e.key.keysym.scancode]);
 
-        IRQ1();
+        pi86Irq1();
       }
     }
   }
+
+  printf("%s shutdown\n", __func__);
 }
+
 /*		X86 keyboard flag
 
                 |7|6|5|4|3|2|1|0|  40:17  Keyboard Flags Byte 0

@@ -40,28 +40,21 @@
 #define A18 4
 #define A19 5
 
-extern bool Stop_Flag;
-
 using namespace std;
 
-void pi86Reset   (void);
-void pi86Start   (int Processor);
-void pi86LoadBios(const string &Bios_file);
-
-// Memory
-void    Write_Memory_Array(uint32_t addr, const uint8_t *src, uint32_t size);
-void    Read_Memory_Array (uint32_t addr, uint8_t *dst, uint32_t size);
-void    Write_Memory_Byte (uint32_t addr, uint8_t data);
-uint8_t Read_Memory_Byte  (uint32_t addr);
-void    Write_Memory_Word (uint32_t addr, uint16_t data);
-
-// IO
-void    Write_IO_Byte(uint32_t addr, uint8_t data);
-uint8_t Read_IO_Byte (uint32_t addr);
-void    Write_IO_Word(uint32_t addr, uint16_t data);
-
-// INT
-void IRQ0(void);
-void IRQ1(void);
-
-uint8_t *memPtr(uint32_t addr);
+void     pi86Reset      (void);
+void     pi86Start      (int Processor);
+void     pi86Stop       (void);
+bool     pi86Running    (void);
+bool     pi86LoadBios   (const string &Bios_file);
+uint8_t *pi86MemPtr     (uint32_t addr);
+uint8_t  pi86MemRead8   (uint32_t addr);
+void     pi86MemReadPtr (uint32_t addr, uint8_t *dst, uint32_t size);
+void     pi86MemWrite8  (uint32_t addr, uint8_t data);
+void     pi86MemWrite16 (uint32_t addr, uint16_t data);
+void     pi86MemWritePtr(uint32_t addr, const uint8_t *src, uint32_t size);
+void     pi86IoWrite8   (uint32_t addr, uint8_t  data);
+void     pi86IoWrite16  (uint32_t addr, uint16_t data);
+uint8_t  pi86IoRead8    (uint32_t addr);
+void     pi86Irq0       (void);
+void     pi86Irq1       (void);

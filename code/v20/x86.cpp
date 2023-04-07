@@ -1,24 +1,26 @@
+#include <atomic>
+
 #include "x86.h"
 
 
-uint8_t RAM[0x100000];
-uint8_t IO [ 0x10000];
+static uint8_t RAM[0x100000];
+static uint8_t IO [ 0x10000];
 
-bool Stop_Flag = false;
-bool IRQ0_Flag = false;
-bool IRQ1_Flag = false;
+static std::atomic_bool Running   { false };
+static std::atomic_bool IRQ0_Flag { false };
+static std::atomic_bool IRQ1_Flag { false };
 
-void IRQ0(void) {
+void pi86Irq0(void) {
   IRQ0_Flag = true;
   digitalWrite(PIN_INTR, HIGH);
 }
 
-void IRQ1(void) {
+void pi86Irq1(void) {
   IRQ1_Flag = true;
   digitalWrite(PIN_INTR, HIGH);
 }
 
-uint8_t Read_Interrupts(void) {
+static uint8_t Read_Interrupts(void) {
   uint8_t intr = 0;
   intr |= IRQ0_Flag << 0;
   intr |= IRQ1_Flag << 1;
@@ -29,7 +31,7 @@ uint8_t Read_Interrupts(void) {
 // System Bus
 ///////////////////////////////
 
-uint32_t Read_Address(void) {
+static uint32_t Read_Address(void) {
   uint32_t Address = 0;
   Address |= digitalRead(AD0) << 0;
   Address |= digitalRead(AD1) << 1;
@@ -55,7 +57,7 @@ uint32_t Read_Address(void) {
 }
 
 // Reads the IO_M, RD, WR pins
-uint8_t Read_Control_Bus(void) {
+static uint8_t Read_Control_Bus(void) {
   uint8_t Control_Bus = 0;
   Control_Bus |= digitalRead(PIN_DTR)  << 0;
   Control_Bus |= digitalRead(PIN_IO_M) << 1;
@@ -64,7 +66,7 @@ uint8_t Read_Control_Bus(void) {
 }
 
 // Reads the selected Memory Bank, High/Low 8086 only
-uint8_t Read_Memory_Bank() {
+static uint8_t Read_Memory_Bank() {
   uint8_t Memory_Bank = 0;
   Memory_Bank |= digitalRead(AD0)     << 0;
   Memory_Bank |= digitalRead(PIN_BHE) << 1;
@@ -72,7 +74,7 @@ uint8_t Read_Memory_Bank() {
 }
 
 // Sets the Data Port direction for read and writes
-void Data_Bus_Direction_8088_IN(void) {
+static void Data_Bus_Direction_8088_IN(void) {
   pinMode(AD0, INPUT);
   pinMode(AD1, INPUT);
   pinMode(AD2, INPUT);
@@ -83,7 +85,7 @@ void Data_Bus_Direction_8088_IN(void) {
   pinMode(AD7, INPUT);
 }
 
-void Data_Bus_Direction_8088_OUT(void) {
+static void Data_Bus_Direction_8088_OUT(void) {
   pinMode(AD0, OUTPUT);
   pinMode(AD1, OUTPUT);
   pinMode(AD2, OUTPUT);
@@ -94,7 +96,7 @@ void Data_Bus_Direction_8088_OUT(void) {
   pinMode(AD7, OUTPUT);
 }
 
-void Data_Bus_Direction_8086_IN(void) {
+static void Data_Bus_Direction_8086_IN(void) {
   pinMode(AD0, INPUT);
   pinMode(AD1, INPUT);
   pinMode(AD2, INPUT);
@@ -113,7 +115,7 @@ void Data_Bus_Direction_8086_IN(void) {
   pinMode(A15, INPUT);
 }
 
-void Data_Bus_Direction_8086_OUT(void) {
+static void Data_Bus_Direction_8086_OUT(void) {
   pinMode(AD0, OUTPUT);
   pinMode(AD1, OUTPUT);
   pinMode(AD2, OUTPUT);
@@ -185,7 +187,7 @@ static uint8_t Read_From_Data_Port_8_15(void) {
 }
 
 // Clicks the CLK pin
-void CLK() {
+static void CLK() {
   static const uint32_t clocks = 12;
   for (uint32_t i=0; i<clocks; ++i) {
     digitalWrite(PIN_CLK, HIGH);
@@ -196,8 +198,9 @@ void CLK() {
 }
 
 // Sets up Raspberry PI pins in the begining
-void Setup(void) {
-  Stop_Flag = false;
+static void Setup(void) {  
+  Running = true;
+  
   wiringPiSetup();
 
   pinMode(PIN_CLK,   OUTPUT);
@@ -238,7 +241,7 @@ static void Start_System_Bus_88(void) {
   uint8_t  Control_Bus    = 0;
   uint8_t  Memory_IO_Bank = 0;
 
-  while (!Stop_Flag) {
+  while (pi86Running()) {
     CLK();
     if (digitalRead(PIN_ALE) == 1) {
       Address = Read_Address();
@@ -262,8 +265,6 @@ static void Start_System_Bus_88(void) {
       case 0x06:
         Data_Bus_Direction_8088_OUT();
         Write_To_Data_Port_0_7(IO[Address]);
-        printf("Read IO %#X, ", Address);
-        printf("Data %#X \n", IO[Address]);
         CLK();
         CLK();
         Data_Bus_Direction_8088_IN();
@@ -271,8 +272,6 @@ static void Start_System_Bus_88(void) {
       // Write IO
       case 0x07:
         IO[Address] = Read_From_Data_Port_0_7();
-        printf("Write IO %#X, ", Address);
-        printf("Data %#X \n", Read_From_Data_Port_0_7());
         CLK();
         CLK();
         break;
@@ -311,12 +310,10 @@ static void Start_System_Bus_88(void) {
           IRQ0_Flag = false;
           break;
         default:
-          printf("Default Interrupt %#X \n", Read_Interrupts());
           break;
         }
         break;
       default:
-        printf("Default \n");
         break;
       }
     }
@@ -328,7 +325,7 @@ static void Start_System_Bus_86(void) {
   uint8_t  Control_Bus    = 0;
   uint8_t  Memory_IO_Bank = 0;
 
-  while (!Stop_Flag) {
+  while (pi86Running()) {
     CLK();
     if (digitalRead(PIN_ALE) == 1) {
       Address = Read_Address();
@@ -455,13 +452,7 @@ static void Start_System_Bus_86(void) {
           Data_Bus_Direction_8086_IN();
           IRQ0_Flag = false;
           break;
-        default:
-          printf("Default Interrupt %#X \n", Read_Interrupts());
-          break;
         }
-        break;
-      default:
-        printf("Default \n");
         break;
       }
     }
@@ -469,53 +460,54 @@ static void Start_System_Bus_86(void) {
 }
 
 // System Bus decoder
-static void Start_System_Bus(int Processor) {
-  if (Processor == 88) {
+static void Start_System_Bus(int model) {
+  if (model == 88) {
     Start_System_Bus_88();
   }
-  if (Processor == 86) {
+  if (model == 86) {
     Start_System_Bus_86();
   }
+  printf("%s shutdown\n", __func__);
 }
 
-void Write_Memory_Array(uint32_t Address, const uint8_t *code_for_8088, uint32_t Length) {
-  for (int i = 0; i < Length; i++) {
-    RAM[Address] = code_for_8088[i];
-    Address++;
+void pi86MemWritePtr(uint32_t addr, const uint8_t *src, uint32_t size) {
+  for (int i = 0; i < size; i++) {
+    RAM[addr] = src[i];
+    addr++;
   }
 }
 
-void Read_Memory_Array(uint32_t Address, uint8_t *char_Array, uint32_t Length) {
-  for (int i = 0; i < Length; ++i) {
-    char_Array[i] = RAM[Address];
-    Address++;
+void pi86MemReadPtr(uint32_t addr, uint8_t *dst, uint32_t size) {
+  for (int i = 0; i < size; ++i) {
+    dst[i] = RAM[addr];
+    addr++;
   }
 }
 
-void Write_Memory_Byte(uint32_t Address, uint8_t byte_for_8088) {
-  RAM[Address] = byte_for_8088;
+void pi86MemWrite8(uint32_t addr, uint8_t data) {
+  RAM[addr] = data;
 }
 
-uint8_t Read_Memory_Byte(uint32_t Address) {
-  return RAM[Address];
+uint8_t pi86MemRead8(uint32_t addr) {
+  return RAM[addr];
 }
 
-void Write_Memory_Word(uint32_t Address, uint16_t word_for_8088) {
-  RAM[Address + 0] = word_for_8088;
-  RAM[Address + 1] = word_for_8088 >> 8;
+void pi86MemWrite16(uint32_t addr, uint16_t data) {
+  RAM[addr + 0] = data;
+  RAM[addr + 1] = data >> 8;
 }
 
-void Write_IO_Byte(uint32_t Address, uint8_t byte_for_8088) {
-  IO[Address] = byte_for_8088;
+void pi86IoWrite8(uint32_t addr, uint8_t data) {
+  IO[addr] = data;
 }
 
-uint8_t Read_IO_Byte(uint64_t Address) {
-  return IO[Address];
+uint8_t pi86IoRead8(uint64_t addr) {
+  return IO[addr];
 }
 
-void Write_IO_Word(uint32_t Address, uint16_t word_for_8088) {
-  IO[Address + 0] = word_for_8088 >> 0;
-  IO[Address + 1] = word_for_8088 >> 8;
+void pi86IoWrite16(uint32_t addr, uint16_t data) {
+  IO[addr + 0] = data >> 0;
+  IO[addr + 1] = data >> 8;
 }
 
 // Resest the x86
@@ -542,39 +534,45 @@ void pi86Start(int Processor) {
   System_Bus.detach();
 }
 
-void pi86LoadBios(const string &path) {
+bool pi86LoadBios(const string &path) {
 
-#if 0
   FILE *fd = fopen(path.c_str(), "rb");
   if (!fd) {
-    return false
+    printf("unable to load '%s'\n", path.c_str());
+    return false;
   }
-#endif
 
-  std::ifstream MemoryFile;              // New ifstream
-  MemoryFile.open(path);                 // Open Rom.bin
-  MemoryFile.seekg(0, ios::end);         // Find the end of the file
-  size_t FileSize = MemoryFile.tellg();  // Get the size of the file
-  MemoryFile.seekg(0, MemoryFile.beg);   // Start reading at the begining
-  uint8_t Rom[FileSize];                 // New char array the size of the rom file
-  MemoryFile.read((char*)Rom, FileSize); // Read the file
-  MemoryFile.close();                    // Close the file
+  fseek(fd, 0, SEEK_END);
+  const size_t biosSize = ftell(fd);
+  fseek(fd, 0, SEEK_SET);
+
+  uint8_t *ptr = pi86MemPtr(0xF8000);
+  fread(ptr, 1, biosSize, fd);
+
+  fclose(fd);
 
   // Jump code to be written to 0xFFFFF, =JMP FAR 0xF000:0X0100
   static const uint8_t FFFF0[] = {
     0XEA, 0X00, 0X01, 0X00, 0XF8, 'E', 'M', ' ', '0',  '4',  '/',  '1',  '0',  '/', '2', '0'
   };
 
-  Write_Memory_Array(0xFFFF0, FFFF0, sizeof(FFFF0)); // Jump Code
-  Write_Memory_Array(0xF8000, Rom,   FileSize);     // The Rom file
-  Write_Memory_Byte (0xF80FF, 0xFF); // Make sure STOP byte is not zero 0x00 = Stop
-  Write_Memory_Byte (0xF8000, 0xFF); // Make sure int13 command port is 0xFF
-  Write_Memory_Byte (0xF80F0, 0x03); // Video mode
+  pi86MemWritePtr(0xFFFF0, FFFF0, sizeof(FFFF0)); // Jump Code
+  pi86MemWrite8(0xF80FF, 0xFF); // Make sure STOP byte is not zero 0x00 = Stop
+  pi86MemWrite8(0xF8000, 0xFF); // Make sure int13 command port is 0xFF
+  pi86MemWrite8(0xF80F0, 0x03); // Video mode
+  pi86IoWrite8 (0X3DA,   0xFF);
 
-  // Video port something...?? makes it work
-  Write_IO_Byte(0X3DA, 0xFF);
+  return true;
 }
 
-uint8_t *memPtr(uint32_t addr) {
+uint8_t *pi86MemPtr(uint32_t addr) {
   return &RAM[addr];
+}
+
+void pi86Stop(void) {
+  Running = false;
+}
+
+bool pi86Running(void) {
+  return Running;
 }
