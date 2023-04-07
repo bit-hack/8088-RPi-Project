@@ -236,87 +236,98 @@ static void Setup(void) {
   pinMode(A19, INPUT);
 }
 
+static void Bus_Cycle_Mem_Read_88(uint32_t Address) {
+  Data_Bus_Direction_8088_OUT();
+  Write_To_Data_Port_0_7(RAM[Address]);
+  CLK();
+  CLK();
+  Data_Bus_Direction_8088_IN();
+}
+
+static void Bus_Cycle_Mem_Write_88(uint32_t Address) {
+  RAM[Address] = Read_From_Data_Port_0_7();
+  CLK();
+  CLK();
+}
+
+static void Bus_Cycle_Interrupt_88(void) {
+  // Waits for second INTA bus cycle 4 CLKS 8088
+  CLK();
+  CLK();
+  CLK();
+  CLK();
+  switch (Read_Interrupts()) {
+  case 0x01:
+    Data_Bus_Direction_8088_OUT();
+    Write_To_Data_Port_0_7(0x08);
+    CLK();
+    CLK();
+    Data_Bus_Direction_8088_IN();
+    IRQ0_Flag = false;
+    digitalWrite(PIN_INTR, LOW);
+    break;
+  case 0x02:
+    Data_Bus_Direction_8088_OUT();
+    Write_To_Data_Port_0_7(0x09);
+    CLK();
+    CLK();
+    Data_Bus_Direction_8088_IN();
+    IRQ1_Flag = false;
+    digitalWrite(PIN_INTR, LOW);
+    break;
+  case 0x03:
+    Data_Bus_Direction_8088_OUT();
+    Write_To_Data_Port_0_7(0x08);
+    CLK();
+    CLK();
+    Data_Bus_Direction_8088_IN();
+    IRQ0_Flag = false;
+    break;
+  }
+}
+
+static void Bus_Cycle_88(void) {
+
+    const uint32_t Address = Read_Address();
+    CLK();
+    switch (Read_Control_Bus()) {
+    // Read Mem
+    case 0x04:
+      Bus_Cycle_Mem_Read_88(Address);
+      break;
+    // Write Mem
+    case 0x05:
+      Bus_Cycle_Mem_Write_88(Address);
+      break;
+    // Read IO
+    case 0x06:
+      Data_Bus_Direction_8088_OUT();
+      Write_To_Data_Port_0_7(IO[Address]);
+      CLK();
+      CLK();
+      Data_Bus_Direction_8088_IN();
+      break;
+    // Write IO
+    case 0x07:
+      IO[Address] = Read_From_Data_Port_0_7();
+      CLK();
+      CLK();
+      break;
+    // Interrupt
+    case 0x02:
+      Bus_Cycle_Interrupt_88();
+      break;
+    }
+}
+
 static void Start_System_Bus_88(void) {
-  uint32_t Address        = 0;
-  uint8_t  Control_Bus    = 0;
-  uint8_t  Memory_IO_Bank = 0;
 
   while (pi86Running()) {
     CLK();
-    if (digitalRead(PIN_ALE) == 1) {
-      Address = Read_Address();
-      CLK();
-      switch (Read_Control_Bus()) {
-      // Read Mem
-      case 0x04:
-        Data_Bus_Direction_8088_OUT();
-        Write_To_Data_Port_0_7(RAM[Address]);
-        CLK();
-        CLK();
-        Data_Bus_Direction_8088_IN();
-        break;
-      // Write Mem
-      case 0x05:
-        RAM[Address] = Read_From_Data_Port_0_7();
-        CLK();
-        CLK();
-        break;
-      // Read IO
-      case 0x06:
-        Data_Bus_Direction_8088_OUT();
-        Write_To_Data_Port_0_7(IO[Address]);
-        CLK();
-        CLK();
-        Data_Bus_Direction_8088_IN();
-        break;
-      // Write IO
-      case 0x07:
-        IO[Address] = Read_From_Data_Port_0_7();
-        CLK();
-        CLK();
-        break;
-      // Interrupt
-      case 0x02:
-        // Waits for second INTA bus cycle 4 CLKS 8088
-        CLK();
-        CLK();
-        CLK();
-        CLK();
-        switch (Read_Interrupts()) {
-        case 0x01:
-          Data_Bus_Direction_8088_OUT();
-          Write_To_Data_Port_0_7(0x08);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8088_IN();
-          IRQ0_Flag = false;
-          digitalWrite(PIN_INTR, LOW);
-          break;
-        case 0x02:
-          Data_Bus_Direction_8088_OUT();
-          Write_To_Data_Port_0_7(0x09);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8088_IN();
-          IRQ1_Flag = false;
-          digitalWrite(PIN_INTR, LOW);
-          break;
-        case 0x03:
-          Data_Bus_Direction_8088_OUT();
-          Write_To_Data_Port_0_7(0x08);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8088_IN();
-          IRQ0_Flag = false;
-          break;
-        default:
-          break;
-        }
-        break;
-      default:
-        break;
-      }
+    if (digitalRead(PIN_ALE) != 1) {
+      continue;
     }
+    Bus_Cycle_88();
   }
 }
 
@@ -461,6 +472,7 @@ static void Start_System_Bus_86(void) {
 
 // System Bus decoder
 static void Start_System_Bus(int model) {
+  printf("Starting 80%02d bus\n", model);
   if (model == 88) {
     Start_System_Bus_88();
   }
