@@ -11,7 +11,7 @@ void Print_Char_18x16(SDL_Renderer *Renderer, int x, int y,
         SDL_SetRenderDrawColor(Renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
       }
 
-      SDL_RenderDrawPoint(Renderer, x + (i * 2), y + j);
+      SDL_RenderDrawPoint(Renderer, x + (i * 2) + 0, y + j);
       SDL_RenderDrawPoint(Renderer, x + (i * 2) + 1, y + j);
     }
   }
@@ -54,8 +54,7 @@ void Mode_2_80x25(SDL_Renderer *Renderer, uint8_t *Video_Memory, uint8_t *Cursor
       index++;
     }
   }
-  Print_Char_9x16(Renderer, (Cursor_Position[0] * 9), (Cursor_Position[1] * 16),
-                  0xDB);
+  Print_Char_9x16(Renderer, (Cursor_Position[0] * 9), (Cursor_Position[1] * 16), 0xDB);
   SDL_RenderPresent(Renderer);
 }
 
