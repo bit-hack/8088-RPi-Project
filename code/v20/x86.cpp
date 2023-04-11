@@ -302,6 +302,12 @@ static void Bus_Cycle_Interrupt_88(void) {
 
 static void Bus_Cycle_88(void) {
 
+    CLK();
+
+    if (digitalRead(PIN_ALE) != 1) {
+      return;
+    }
+
     const uint32_t Address = Read_Address();
     CLK();
     switch (Read_Control_Bus()) {
@@ -329,152 +335,8 @@ static void Bus_Cycle_88(void) {
 }
 
 static void Start_System_Bus_88(void) {
-
   while (pi86Running()) {
-    CLK();
-    if (digitalRead(PIN_ALE) != 1) {
-      continue;
-    }
     Bus_Cycle_88();
-  }
-}
-
-static void Start_System_Bus_86(void) {
-  uint32_t Address        = 0;
-  uint8_t  Control_Bus    = 0;
-  uint8_t  Memory_IO_Bank = 0;
-
-  while (pi86Running()) {
-    CLK();
-    if (digitalRead(PIN_ALE) == 1) {
-      Address = Read_Address();
-      Memory_IO_Bank = Read_Memory_Bank();
-      CLK();
-      switch (Read_Control_Bus() + (Memory_IO_Bank << 4)) {
-      // Write Mem
-      case 0x07:
-        RAM[Address + 0] = Read_From_Data_Port_0_7();
-        RAM[Address + 1] = Read_From_Data_Port_8_15();
-        CLK();
-        CLK();
-        break;
-      case 0x17:
-        RAM[Address] = Read_From_Data_Port_8_15();
-        CLK();
-        CLK();
-        break;
-      case 0x27:
-        RAM[Address] = Read_From_Data_Port_0_7();
-        CLK();
-        CLK();
-        break;
-      // Read Mem
-      case 0x06:
-        Data_Bus_Direction_8086_OUT();
-        Write_To_Data_Port_0_7 (RAM[Address + 0]);
-        Write_To_Data_Port_8_15(RAM[Address + 1]);
-        CLK();
-        CLK();
-        Data_Bus_Direction_8086_IN();
-        break;
-      case 0x16:
-        Data_Bus_Direction_8086_OUT();
-        Write_To_Data_Port_8_15(RAM[Address]);
-        CLK();
-        CLK();
-        Data_Bus_Direction_8086_IN();
-        break;
-      case 0x26:
-        Data_Bus_Direction_8086_OUT();
-        Write_To_Data_Port_0_7(RAM[Address]);
-        CLK();
-        CLK();
-        Data_Bus_Direction_8086_IN();
-        break;
-      // Write IO
-      case 0x05:
-        IO[Address + 0] = Read_From_Data_Port_0_7();
-        IO[Address + 1] = Read_From_Data_Port_8_15();
-        CLK();
-        CLK();
-        break;
-      case 0x15:
-        IO[Address] = Read_From_Data_Port_8_15();
-        CLK();
-        CLK();
-        break;
-      case 0x25:
-        IO[Address] = Read_From_Data_Port_0_7();
-        CLK();
-        CLK();
-        break;
-      // Read IO
-      case 0x04:
-        Data_Bus_Direction_8086_OUT();
-        Write_To_Data_Port_0_7 (IO[Address + 0]);
-        Write_To_Data_Port_8_15(IO[Address + 1]);
-        CLK();
-        CLK();
-        Data_Bus_Direction_8086_IN();
-        break;
-      case 0x14:
-        Data_Bus_Direction_8086_OUT();
-        Write_To_Data_Port_8_15(IO[Address]);
-        CLK();
-        CLK();
-        Data_Bus_Direction_8086_IN();
-        break;
-      case 0x24:
-        Data_Bus_Direction_8086_OUT();
-        Write_To_Data_Port_0_7(IO[Address]);
-        CLK();
-        CLK();
-        Data_Bus_Direction_8086_IN();
-        break;
-        // Interrupt
-      case 0x00:
-        // Waits for second INTA bus cycle 7 CLKS 8086
-        CLK();
-        CLK();
-        CLK();
-        CLK();
-        CLK();
-        CLK();
-        CLK();
-        switch (Read_Interrupts()) {
-        // System Timer
-        case 0x01:
-          Data_Bus_Direction_8086_OUT();
-          Write_To_Data_Port_0_7(0x08);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8086_IN();
-          IRQ0_Flag = false;
-          digitalWrite(PIN_INTR, LOW);
-          break;
-        // Keyboard
-        case 0x02:
-          Data_Bus_Direction_8086_OUT();
-          Write_To_Data_Port_0_7(0x09);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8086_IN();
-          IRQ1_Flag = false;
-          digitalWrite(PIN_INTR, LOW);
-          break;
-        // System Timer and Keyboard, System Timer is handled
-        case 0x03:
-          Data_Bus_Direction_8086_OUT();
-          Write_To_Data_Port_0_7(0x08);
-          CLK();
-          CLK();
-          Data_Bus_Direction_8086_IN();
-          IRQ0_Flag = false;
-          break;
-        }
-        break;
-      }
-    }
   }
 }
 
@@ -484,10 +346,13 @@ static void Start_System_Bus(int model) {
   if (model == 88) {
     Start_System_Bus_88();
   }
-  if (model == 86) {
-    Start_System_Bus_86();
-  }
   printf("%s shutdown\n", __func__);
+}
+
+void pi86BusCycle(uint32_t cycles) {
+  while (cycles--) {
+    Bus_Cycle_88();
+  }
 }
 
 void pi86MemWritePtr(uint32_t addr, const uint8_t *src, uint32_t size) {
@@ -549,9 +414,9 @@ void pi86Start(int Processor) {
   Setup();
   pi86Reset();
   // Starts the x86 system bus in a thread
-  thread System_Bus(Start_System_Bus, Processor);
+//  thread System_Bus(Start_System_Bus, Processor);
   // Detach the thread to continue in the program
-  System_Bus.detach();
+//  System_Bus.detach();
 }
 
 bool pi86LoadBios(const string &path) {

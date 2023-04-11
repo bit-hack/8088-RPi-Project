@@ -51,9 +51,11 @@ int main(int argc, char *argv[]) {
   thread screen_loop(Up_Date_Screen, window, renderer); // Start screen
 
   while (pi86Running()) {
-    usleep(50);                            // Give the 8088 time to run
-    if (pi86MemRead8(0xF80FF) == 0X00) // Check for stop command
-    {
+
+    pi86BusCycle(10000);
+
+    // Check for stop command
+    if (pi86MemRead8(0xF80FF) == 0X00) {
       pi86Stop();
       break; // If stop = 0x00 then stop threads
     }

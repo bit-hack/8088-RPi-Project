@@ -58,3 +58,4 @@ void     pi86IoWrite16  (uint32_t addr, uint16_t data);
 uint8_t  pi86IoRead8    (uint32_t addr);
 void     pi86Irq0       (void);
 void     pi86Irq1       (void);
+void     pi86BusCycle   (uint32_t cycles);
