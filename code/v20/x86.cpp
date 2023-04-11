@@ -250,6 +250,20 @@ static void Bus_Cycle_Mem_Write_88(uint32_t Address) {
   CLK();
 }
 
+static void Bus_Cycle_Io_Read_88(uint32_t Address) {
+  Data_Bus_Direction_8088_OUT();
+  Write_To_Data_Port_0_7(IO[Address]);
+  CLK();
+  CLK();
+  Data_Bus_Direction_8088_IN();
+}
+
+static void Bus_Cycle_Io_Write_88(uint32_t Address) {
+  IO[Address] = Read_From_Data_Port_0_7();
+  CLK();
+  CLK();
+}
+
 static void Bus_Cycle_Interrupt_88(void) {
   // Waits for second INTA bus cycle 4 CLKS 8088
   CLK();
@@ -292,29 +306,23 @@ static void Bus_Cycle_88(void) {
     CLK();
     switch (Read_Control_Bus()) {
     // Read Mem
-    case 0x04:
+    case 0b100:
       Bus_Cycle_Mem_Read_88(Address);
       break;
     // Write Mem
-    case 0x05:
+    case 0b101:
       Bus_Cycle_Mem_Write_88(Address);
       break;
     // Read IO
-    case 0x06:
-      Data_Bus_Direction_8088_OUT();
-      Write_To_Data_Port_0_7(IO[Address]);
-      CLK();
-      CLK();
-      Data_Bus_Direction_8088_IN();
+    case 0b110:
+      Bus_Cycle_Io_Read_88(Address);
       break;
     // Write IO
-    case 0x07:
-      IO[Address] = Read_From_Data_Port_0_7();
-      CLK();
-      CLK();
+    case 0b111:
+      Bus_Cycle_Io_Write_88(Address);
       break;
     // Interrupt
-    case 0x02:
+    case 0b010:
       Bus_Cycle_Interrupt_88();
       break;
     }
