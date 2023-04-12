@@ -334,21 +334,6 @@ static void Bus_Cycle_88(void) {
     }
 }
 
-static void Start_System_Bus_88(void) {
-  while (pi86Running()) {
-    Bus_Cycle_88();
-  }
-}
-
-// System Bus decoder
-static void Start_System_Bus(int model) {
-  printf("Starting 80%02d bus\n", model);
-  if (model == 88) {
-    Start_System_Bus_88();
-  }
-  printf("%s shutdown\n", __func__);
-}
-
 void pi86BusCycle(uint32_t cycles) {
   while (cycles--) {
     Bus_Cycle_88();
@@ -413,10 +398,6 @@ void pi86Start(int Processor) {
   // Sets up Ports
   Setup();
   pi86Reset();
-  // Starts the x86 system bus in a thread
-//  thread System_Bus(Start_System_Bus, Processor);
-  // Detach the thread to continue in the program
-//  System_Bus.detach();
 }
 
 bool pi86LoadBios(const string &path) {

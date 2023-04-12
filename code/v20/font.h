@@ -1,5 +1,6 @@
-#ifndef FONT_H
-#define FONT_H
+#pragma once 
+
+#include <cstdint>
 
 const unsigned char _8x8char[256][8] = {
     // 00
@@ -5672,4 +5673,3 @@ const unsigned long font_9x16[256][16] = {
         0x0000, /* 000000000 */
         0x0000, /* 000000000 */
     }};
-#endif
