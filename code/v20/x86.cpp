@@ -1,7 +1,43 @@
 #include <atomic>
+#include <unistd.h>
+#include <wiringPi.h>
 
 #include "x86.h"
+#include "drives.h"
 
+
+#define PIN_CLK   29
+#define PIN_RESET 27
+#define PIN_ALE   26
+#define PIN_IO_M  10
+#define PIN_DTR   11
+#define PIN_BHE   6
+#define PIN_INTR  28
+#define PIN_INTA  31
+
+#define AD0 25
+#define AD1 24
+#define AD2 23
+#define AD3 22
+#define AD4 21
+#define AD5 30
+#define AD6 14
+#define AD7 13
+#define A8  12
+#define A9  3
+#define A10 2
+#define A11 0
+#define A12 7
+#define A13 9
+#define A14 8
+#define A15 15
+#define A16 16
+#define A17 1
+#define A18 4
+#define A19 5
+
+
+using namespace std;
 
 static uint8_t RAM[0x100000];
 static uint8_t IO [ 0x10000];
@@ -238,28 +274,32 @@ static void Setup(void) {
 
 static void Bus_Cycle_Mem_Read_88(uint32_t Address) {
   Data_Bus_Direction_8088_OUT();
-  Write_To_Data_Port_0_7(RAM[Address]);
+  const uint8_t data = pi86MemRead8(Address);
+  Write_To_Data_Port_0_7(data);
   CLK();
   CLK();
   Data_Bus_Direction_8088_IN();
 }
 
 static void Bus_Cycle_Mem_Write_88(uint32_t Address) {
-  RAM[Address] = Read_From_Data_Port_0_7();
+  const uint8_t data = Read_From_Data_Port_0_7();
+  pi86MemWrite8(Address, data);
   CLK();
   CLK();
 }
 
 static void Bus_Cycle_Io_Read_88(uint32_t Address) {
   Data_Bus_Direction_8088_OUT();
-  Write_To_Data_Port_0_7(IO[Address]);
+  const uint8_t data = pi86IoRead8(Address);  
+  Write_To_Data_Port_0_7(data);
   CLK();
   CLK();
   Data_Bus_Direction_8088_IN();
 }
 
 static void Bus_Cycle_Io_Write_88(uint32_t Address) {
-  IO[Address] = Read_From_Data_Port_0_7();
+  const uint8_t data = Read_From_Data_Port_0_7();
+  pi86IoWrite8(Address, data);
   CLK();
   CLK();
 }
@@ -355,7 +395,13 @@ void pi86MemReadPtr(uint32_t addr, uint8_t *dst, uint32_t size) {
 }
 
 void pi86MemWrite8(uint32_t addr, uint8_t data) {
+
   RAM[addr] = data;
+
+  if (addr == 0xF8000) {
+    // int13h handler
+    pollInt13();
+  }
 }
 
 uint8_t pi86MemRead8(uint32_t addr) {
@@ -363,21 +409,21 @@ uint8_t pi86MemRead8(uint32_t addr) {
 }
 
 void pi86MemWrite16(uint32_t addr, uint16_t data) {
-  RAM[addr + 0] = data;
-  RAM[addr + 1] = data >> 8;
+  pi86MemWrite8(addr + 0, data >> 0);
+  pi86MemWrite8(addr + 1, data >> 8);
 }
 
 void pi86IoWrite8(uint32_t addr, uint8_t data) {
   IO[addr] = data;
 }
 
-uint8_t pi86IoRead8(uint64_t addr) {
+uint8_t pi86IoRead8(uint32_t addr) {
   return IO[addr];
 }
 
 void pi86IoWrite16(uint32_t addr, uint16_t data) {
-  IO[addr + 0] = data >> 0;
-  IO[addr + 1] = data >> 8;
+  pi86IoWrite8(addr + 0, data >> 0);
+  pi86IoWrite8(addr + 1, data >> 8);
 }
 
 // Resest the x86

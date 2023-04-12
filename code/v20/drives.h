@@ -1,8 +1,6 @@
-#ifndef DRIVES_H
-#define DRIVES_H
+#pragma once
 
-#include "x86.h"
+#include <string>
 
-void Start_Drives(string Floppy, string Hard_Drive);
-
-#endif
+void Start_Drives(std::string Floppy, std::string Hard_Drive);
+void pollInt13(void);

@@ -1,20 +1,32 @@
+#include <string>
+#include <iostream>
+#include <thread>
+
+#include <unistd.h>
+
 #include "drives.h"
+#include "x86.h"
+
 
 //////////////////
 // Disk Handler
 ///////////////////
 
-string drive_A; // Floppy A:  img file
-string drive_C; // Hard Drive C:  img file
+static std::string drive_A; // Floppy A:  img file
+static std::string drive_C; // Hard Drive C:  img file
 
-void Get_Disk_Parameters_A() {
-  std::fstream MemoryFile;             // This opens the drive img
-  MemoryFile.open(drive_A);            // File to open
-  MemoryFile.seekg(0, MemoryFile.beg); // Moves back to the begining
+static bool Get_Disk_Parameters_A() {
+
   char Floppy[0x200]; // Char array to hold the data only reading first sector
-  MemoryFile.read(Floppy, sizeof(Floppy)); // Read the file into the array
-  MemoryFile.close();                      // Close the file
+  
+  FILE *fd = fopen(drive_A.c_str(), "r");
+  if (!fd) {
+    return false;
+  }
 
+  fread(Floppy, 1, sizeof(Floppy), fd);
+  fclose(fd);
+  
   char Media_Descriptor[0x10] = {0x04, 0,    0, 0, 0, 0,    0, 0,
                                  0xF8, 0x02, 0, 0, 0, 0x01, 0, 0};
   // Start at port 11
@@ -40,9 +52,11 @@ void Get_Disk_Parameters_A() {
   pi86MemWrite8(0xF8014, 0x00); // Always zero for floppy
   pi86MemWrite8(0xF8015, 0x00); // Always zero for floppy
   pi86MemWrite8(0xF8016, 0X01); // Drive type
+  
+  return true;
 }
 
-bool Get_Disk_Parameters_C() {
+static bool Get_Disk_Parameters_C() {
 
   FILE *fd = fopen(drive_C.c_str(), "rb");
   if (!fd) {
@@ -109,8 +123,9 @@ bool Get_Disk_Parameters_C() {
 }
 
 void Int13(void) {
-  uint8_t Int13_Command = pi86MemRead8(0xF8000);
-  uint8_t Drive         = pi86MemRead8(0xF8006);
+
+  const uint8_t Int13_Command = pi86MemRead8(0xF8000);
+  const uint8_t Drive         = pi86MemRead8(0xF8006);
 
   if (Int13_Command != 0xFF) {
 
@@ -202,25 +217,31 @@ void Int13(void) {
       if (int13_data[6] == 0x00) { Get_Disk_Parameters_A(); }
       if (int13_data[6] == 0x80) { Get_Disk_Parameters_C(); }
     }
+
     pi86MemWrite8(0xF8000, 0xFF);
   }
 }
 
-void Drives() {
-  char Int13_Command;
-  while (pi86Running()) {
-    usleep(500);
-    Int13_Command = pi86MemRead8(0xF8000); // Check for Int13 command
-    if (Int13_Command != 0XFF)                 // Check for Int13
-    {
-      Int13(); // Raspberry PI Int13 handler
-    }
+void pollInt13(void) {
+  const uint8_t Int13_Command = pi86MemRead8(0xF8000); // Check for Int13 command
+  if (Int13_Command != 0XFF)             // Check for Int13
+  {
+    Int13(); // Raspberry PI Int13 handler
   }
 }
 
-void Start_Drives(string Floppy, string Hard_Drive) {
+#if 0
+static void Drives(void) {
+  while (pi86Running()) {
+    usleep(500);
+    pollInt13();
+  }
+}
+#endif
+
+void Start_Drives(std::string Floppy, std::string Hard_Drive) {
   drive_A = Floppy;
   drive_C = Hard_Drive;
-  thread start_drives(Drives);
-  start_drives.detach();
+//  std::thread start_drives(Drives);
+//  start_drives.detach();
 }

@@ -3,12 +3,12 @@
 #include <thread>
 #include <unistd.h>
 #include <time.h>
+#include <string>
 
 #include "SDL.h"
 #include "drives.h"
 #include "font.h"
 #include "keycodes.h"
-#include "timer.h"
 #include "vga.h"
 #include "x86.h"
 
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
 
   while (pi86Running()) {
 
-    pi86BusCycle(10000);
+    pi86BusCycle(20000);
 
     while (keyboard());
     

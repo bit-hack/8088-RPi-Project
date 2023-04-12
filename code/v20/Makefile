@@ -1,4 +1,4 @@
-SOURCES=drives.cpp pi86.cpp timer.cpp vga.cpp x86.cpp
+SOURCES=drives.cpp pi86.cpp vga.cpp x86.cpp
 LIBS=`sdl2-config --cflags --libs` -pthread -lwiringPi
 CFLAGS=-O2
 
