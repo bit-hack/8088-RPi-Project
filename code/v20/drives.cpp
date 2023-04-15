@@ -1,7 +1,5 @@
 #include <string>
-#include <iostream>
-#include <thread>
-
+#include <cstdio>
 #include <unistd.h>
 
 #include "drives.h"
@@ -122,7 +120,7 @@ static bool Get_Disk_Parameters_C() {
   return true;
 }
 
-void Int13(void) {
+static void Int13(void) {
 
   const uint8_t Int13_Command = pi86MemRead8(0xF8000);
   const uint8_t Drive         = pi86MemRead8(0xF8006);
@@ -223,25 +221,13 @@ void Int13(void) {
 }
 
 void pollInt13(void) {
-  const uint8_t Int13_Command = pi86MemRead8(0xF8000); // Check for Int13 command
-  if (Int13_Command != 0XFF)             // Check for Int13
-  {
-    Int13(); // Raspberry PI Int13 handler
+  const uint8_t Int13_Command = pi86MemRead8(0xF8000);
+  if (Int13_Command != 0XFF) {
+    Int13();
   }
 }
-
-#if 0
-static void Drives(void) {
-  while (pi86Running()) {
-    usleep(500);
-    pollInt13();
-  }
-}
-#endif
 
 void Start_Drives(std::string Floppy, std::string Hard_Drive) {
   drive_A = Floppy;
   drive_C = Hard_Drive;
-//  std::thread start_drives(Drives);
-//  start_drives.detach();
 }

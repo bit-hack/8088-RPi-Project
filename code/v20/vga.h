@@ -1,7 +1,5 @@
 #pragma once
 
-#include <thread>
-
 #include "SDL.h"
 #include "font.h"
 #include "x86.h"
