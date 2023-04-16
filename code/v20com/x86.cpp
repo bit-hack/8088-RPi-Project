@@ -1,16 +1,16 @@
 #include <unistd.h>
 #include <wiringPi.h>
+#include <stdio.h>
 
 #include "x86.h"
 
 #define PIN_CLK   29
 #define PIN_RESET 27
-#define PIN_ALE   26
-#define PIN_IO_M  10
-#define PIN_DTR   11
-#define PIN_BHE   6
-#define PIN_INTR  28
-#define PIN_INTA  31
+#define PIN_ALE   26  // address latch enable
+#define PIN_IO_M  10  // io            (high) / memory  (low)
+#define PIN_DTR   11  // data transmit (high) / receive (low)
+#define PIN_INTR  28  // interrupt request
+#define PIN_INTA  31  // interrupt acknowlege
 #define PIN_AD0   25
 #define PIN_AD1   24
 #define PIN_AD2   23
@@ -35,11 +35,11 @@
 
 static bool running;
 
-pi86MemRead8_t   pi86ExtMemRead8;
-pi86MemWrite8_t  pi86ExtMemWrite8;
-pi86IoRead8_t    pi86ExtIoRead8;
-pi86IoWrite8_t   pi86ExtIoWrite8;
-pi86IntAck_t     pi86ExtIntAck;
+pi86MemRead8_t  pi86ExtMemRead8;
+pi86MemWrite8_t pi86ExtMemWrite8;
+pi86IoRead8_t   pi86ExtIoRead8;
+pi86IoWrite8_t  pi86ExtIoWrite8;
+pi86IntAck_t    pi86ExtIntAck;
 
 static uint64_t cycles = 0;
 static uint32_t tstate = 0;
@@ -70,14 +70,6 @@ static uint8_t pi86IoRead8(uint32_t addr) {
   return 0;
 }
 
-void pi86Irq(void) {
-  digitalWrite(PIN_INTR, HIGH);
-}
-
-//////////////////////////////
-// System Bus
-///////////////////////////////
-
 static uint32_t addrBusRead(void) {
   uint32_t addr = 0;
   addr |= digitalRead(PIN_AD0) << 0;
@@ -103,7 +95,6 @@ static uint32_t addrBusRead(void) {
   return addr;
 }
 
-// Reads the IO_M, RD, WR pins
 static uint8_t ctrlBusRead(void) {
   uint8_t ctrl = 0;
   ctrl |= digitalRead(PIN_DTR)  << 0;
@@ -112,7 +103,6 @@ static uint8_t ctrlBusRead(void) {
   return ctrl;
 }
 
-// Sets the Data Port direction for read and writes
 static void dataBusDir(int mode) {
   pinMode(PIN_AD0, mode);
   pinMode(PIN_AD1, mode);
@@ -124,8 +114,7 @@ static void dataBusDir(int mode) {
   pinMode(PIN_AD7, mode);
 }
 
-// Writes Data to Data Port 0-7
-void dataBusWrite(uint8_t data) {
+static void dataBusWrite(uint8_t data) {
   digitalWrite(PIN_AD0, (data >> 0) & 1);
   digitalWrite(PIN_AD1, (data >> 1) & 1);
   digitalWrite(PIN_AD2, (data >> 2) & 1);
@@ -136,7 +125,6 @@ void dataBusWrite(uint8_t data) {
   digitalWrite(PIN_AD7, (data >> 7) & 1);
 }
 
-// Reads Data to Data Port 0-7
 static uint8_t dataBusRead(void) {
   uint8_t ret = 0;
   ret |= digitalRead(PIN_AD0) << 0;
@@ -150,56 +138,16 @@ static uint8_t dataBusRead(void) {
   return ret;
 }
 
-// Clicks the clk pin
 static void clk() {
   static const uint32_t clocks = 12;
-  for (uint32_t i=0; i<clocks; ++i) {
+  for (uint32_t i=clocks; i--;) {
     digitalWrite(PIN_CLK, HIGH);
   }
-  for (uint32_t i=0; i<clocks; ++i) {
+  for (uint32_t i=clocks; i--;) {
     digitalWrite(PIN_CLK, LOW);
   }
   ++cycles;
   ++tstate;
-}
-
-// Sets up Raspberry PI pins in the begining
-static void Setup(void) {  
-  running = true;
-  
-  wiringPiSetup();
-
-  pinMode(PIN_CLK,   OUTPUT);
-  pinMode(PIN_RESET, OUTPUT);
-  pinMode(PIN_ALE,   INPUT);
-  pinMode(PIN_IO_M,  INPUT);
-  pinMode(PIN_DTR,   INPUT);
-  pinMode(PIN_BHE,   INPUT);
-
-  pinMode(PIN_INTR,  OUTPUT);
-  pinMode(PIN_INTA,  INPUT);
-  digitalWrite(PIN_INTR, LOW);
-
-  pinMode(PIN_AD0, INPUT);
-  pinMode(PIN_AD1, INPUT);
-  pinMode(PIN_AD2, INPUT);
-  pinMode(PIN_AD3, INPUT);
-  pinMode(PIN_AD4, INPUT);
-  pinMode(PIN_AD5, INPUT);
-  pinMode(PIN_AD6, INPUT);
-  pinMode(PIN_AD7, INPUT);
-  pinMode(PIN_A8,  INPUT);
-  pinMode(PIN_A9,  INPUT);
-  pinMode(PIN_A10, INPUT);
-  pinMode(PIN_A11, INPUT);
-  pinMode(PIN_A12, INPUT);
-  pinMode(PIN_A13, INPUT);
-  pinMode(PIN_A14, INPUT);
-  pinMode(PIN_A15, INPUT);
-  pinMode(PIN_A16, INPUT);
-  pinMode(PIN_A17, INPUT);
-  pinMode(PIN_A18, INPUT);
-  pinMode(PIN_A19, INPUT);
 }
 
 static void busCycleMemRead(uint32_t addr) {
@@ -225,7 +173,7 @@ static void busCycleMemWrite(uint32_t addr) {
 static void busCycleIoRead(uint32_t addr) {
 
   dataBusDir(OUTPUT);
-  const uint8_t data = pi86IoRead8(addr);  
+  const uint8_t data = pi86IoRead8(addr);
   dataBusWrite(data);
   clk();  // T3
 
@@ -258,7 +206,7 @@ static void busCycleInterrupt(void) {
   clk();  // T2
 
   dataBusDir(OUTPUT);
-  dataBusWrite(type); 
+  dataBusWrite(type);
   clk();  // T3
 
   clk();  // T4
@@ -269,13 +217,24 @@ static void busCycleInterrupt(void) {
 
 static void busCycle(void) {
 
-    // todo: if no ALE is detected after X cycles the CPU might be in a hlt state
+    for (int i=0; ;++i) {
 
-    tstate = 0;
-    clk();  // T1
-    if (digitalRead(PIN_ALE) != 1) {
-      return;
+      clk();  // T1
+      if (digitalRead(PIN_ALE) == 1) {
+        break;
+      }
+
+      // note: should warn here?
+
+      // in halted state
+      if (i >= 32) {
+        printf("halt state detected\n");
+        running = false;
+        return;
+      }
     }
+    
+    tstate = 1;
 
     const uint32_t addr = addrBusRead();
     clk();  // T2
@@ -291,7 +250,7 @@ static void busCycle(void) {
 }
 
 void pi86BusCycle(uint32_t count) {
-  while (count--) {
+  while (running && count--) {
     busCycle();
   }
 }
@@ -305,7 +264,42 @@ void pi86Reset(void) {
 }
 
 void pi86Start() {
-  Setup();
+
+  running = true;
+
+  wiringPiSetup();
+
+  pinMode(PIN_AD0,   INPUT);
+  pinMode(PIN_AD1,   INPUT);
+  pinMode(PIN_AD2,   INPUT);
+  pinMode(PIN_AD3,   INPUT);
+  pinMode(PIN_AD4,   INPUT);
+  pinMode(PIN_AD5,   INPUT);
+  pinMode(PIN_AD6,   INPUT);
+  pinMode(PIN_AD7,   INPUT);
+  pinMode(PIN_A8,    INPUT);
+  pinMode(PIN_A9,    INPUT);
+  pinMode(PIN_A10,   INPUT);
+  pinMode(PIN_A11,   INPUT);
+  pinMode(PIN_A12,   INPUT);
+  pinMode(PIN_A13,   INPUT);
+  pinMode(PIN_A14,   INPUT);
+  pinMode(PIN_A15,   INPUT);
+  pinMode(PIN_A16,   INPUT);
+  pinMode(PIN_A17,   INPUT);
+  pinMode(PIN_A18,   INPUT);
+  pinMode(PIN_A19,   INPUT);
+  pinMode(PIN_ALE,   INPUT);
+  pinMode(PIN_IO_M,  INPUT);
+  pinMode(PIN_DTR,   INPUT);
+  pinMode(PIN_INTA,  INPUT);
+
+  pinMode(PIN_CLK,   OUTPUT);
+  pinMode(PIN_RESET, OUTPUT);
+  pinMode(PIN_INTR,  OUTPUT);
+
+  digitalWrite(PIN_INTR, LOW);
+
   pi86Reset();
 }
 
@@ -323,4 +317,8 @@ uint64_t pi86CycleCount(void) {
 
 uint32_t pi86TState(void) {
   return tstate;
+}
+
+void pi86Irq(void) {
+  digitalWrite(PIN_INTR, HIGH);
 }

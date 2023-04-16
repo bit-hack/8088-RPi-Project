@@ -6,34 +6,45 @@
 static uint8_t ram[0x100000];
 static uint8_t io [ 0x10000];
 
+bool logReads;
+bool logWrites = true;
+
 static void prefix(void) {
   printf("%6llu T%u ", pi86CycleCount(), pi86TState());
 }
 
 static uint8_t memRead8(uint32_t addr) {
   const uint8_t data = ram[addr];
-  prefix();
-  printf("mem %05x r %02x\n", addr, data);
+  if (logReads) {
+    prefix();
+    printf("mem %05x r %02x\n", addr, data);
+  }
   return data;
 }
 
 static void memWrite8(uint32_t addr, uint8_t data) {
-  prefix();
-  printf("mem %05x w %02x\n", addr, data);
+  if (logWrites) {
+    prefix();
+    printf("mem %05x w %02x\n", addr, data);
+  }
   ram[addr] = data;
 }
 
 static uint8_t ioRead8(uint32_t addr) {
   const uint8_t data = io[addr];
-  prefix();
-  printf(" io  %04x r %02x\n", addr, data);
+  if (logReads) {
+    prefix();
+    printf(" io  %04x r %02x\n", addr, data);
+  }
   return data;
 }
 
 static void ioWrite8(uint32_t addr, uint8_t data) {
   io[addr] = data;
-  prefix();
-  printf(" io  %04x w %02x\n", addr, data);
+  if (logWrites) {
+    prefix();
+    printf(" io  %04x w %02x\n", addr, data);
+  }
 }
 
 static uint8_t intAck(void) {
