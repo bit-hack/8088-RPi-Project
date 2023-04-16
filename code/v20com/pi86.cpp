@@ -6,30 +6,38 @@
 static uint8_t ram[0x100000];
 static uint8_t io [ 0x10000];
 
+static void prefix(void) {
+  printf("%6llu T%u ", pi86CycleCount(), pi86TState());
+}
+
 static uint8_t memRead8(uint32_t addr) {
   const uint8_t data = ram[addr];
-  printf("%6llu mem %05x r %02x\n",
-    pi86CycleCount(), addr, data);
+  prefix();
+  printf("mem %05x r %02x\n", addr, data);
   return data;
 }
 
 static void memWrite8(uint32_t addr, uint8_t data) {
-  printf("%6llu mem %05x w %02x\n",
-    pi86CycleCount(), addr, data);
+  prefix();
+  printf("mem %05x w %02x\n", addr, data);
   ram[addr] = data;
 }
 
 static uint8_t ioRead8(uint32_t addr) {
   const uint8_t data = io[addr];
-  printf("%6llu  io  %04x r %02x\n",
-    pi86CycleCount(), addr, data);
+  prefix();
+  printf(" io  %04x r %02x\n", addr, data);
   return data;
 }
 
 static void ioWrite8(uint32_t addr, uint8_t data) {
   io[addr] = data;
-  printf("%6llu  io  %04x w %02x\n",
-    pi86CycleCount(), addr, data);
+  prefix();
+  printf(" io  %04x w %02x\n", addr, data);
+}
+
+static uint8_t intAck(void) {
+  return 0;
 }
 
 static bool loadComFile(const char *path) {
@@ -61,10 +69,11 @@ int main(int argc, char *args[]) {
   }
 
   // setup memory handlers
-  pi86ExtMemRead8   = memRead8;
-  pi86ExtMemWrite8  = memWrite8;
-  pi86ExtIoRead8    = ioRead8;
-  pi86ExtIoWrite8   = ioWrite8;
+  pi86ExtMemRead8  = memRead8;
+  pi86ExtMemWrite8 = memWrite8;
+  pi86ExtIoRead8   = ioRead8;
+  pi86ExtIoWrite8  = ioWrite8;
+  pi86ExtIntAck    = intAck;
 
   // run some bus cycles
   pi86Start();

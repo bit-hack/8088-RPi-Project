@@ -1,4 +1,3 @@
-#include <atomic>
 #include <unistd.h>
 #include <wiringPi.h>
 
@@ -12,32 +11,29 @@
 #define PIN_BHE   6
 #define PIN_INTR  28
 #define PIN_INTA  31
+#define PIN_AD0   25
+#define PIN_AD1   24
+#define PIN_AD2   23
+#define PIN_AD3   22
+#define PIN_AD4   21
+#define PIN_AD5   30
+#define PIN_AD6   14
+#define PIN_AD7   13
+#define PIN_A8    12
+#define PIN_A9    3
+#define PIN_A10   2
+#define PIN_A11   0
+#define PIN_A12   7
+#define PIN_A13   9
+#define PIN_A14   8
+#define PIN_A15   15
+#define PIN_A16   16
+#define PIN_A17   1
+#define PIN_A18   4
+#define PIN_A19   5
 
-#define AD0 25
-#define AD1 24
-#define AD2 23
-#define AD3 22
-#define AD4 21
-#define AD5 30
-#define AD6 14
-#define AD7 13
-#define A8  12
-#define A9  3
-#define A10 2
-#define A11 0
-#define A12 7
-#define A13 9
-#define A14 8
-#define A15 15
-#define A16 16
-#define A17 1
-#define A18 4
-#define A19 5
 
-
-static std::atomic_bool Running   { false };
-static std::atomic_bool IRQ0_Flag { false };
-static std::atomic_bool IRQ1_Flag { false };
+static bool running;
 
 pi86MemRead8_t   pi86ExtMemRead8;
 pi86MemWrite8_t  pi86ExtMemWrite8;
@@ -46,6 +42,7 @@ pi86IoWrite8_t   pi86ExtIoWrite8;
 pi86IntAck_t     pi86ExtIntAck;
 
 static uint64_t cycles = 0;
+static uint32_t tstate = 0;
 
 static void pi86MemWrite8(uint32_t addr, uint8_t data) {
   if (pi86ExtMemWrite8) {
@@ -73,112 +70,88 @@ static uint8_t pi86IoRead8(uint32_t addr) {
   return 0;
 }
 
-void pi86Irq0(void) {
-  IRQ0_Flag = true;
+void pi86Irq(void) {
   digitalWrite(PIN_INTR, HIGH);
-}
-
-void pi86Irq1(void) {
-  IRQ1_Flag = true;
-  digitalWrite(PIN_INTR, HIGH);
-}
-
-static uint8_t Read_Interrupts(void) {
-  uint8_t intr = 0;
-  intr |= IRQ0_Flag << 0;
-  intr |= IRQ1_Flag << 1;
-  return intr;
 }
 
 //////////////////////////////
 // System Bus
 ///////////////////////////////
 
-static uint32_t Read_Address(void) {
-  uint32_t Address = 0;
-  Address |= digitalRead(AD0) << 0;
-  Address |= digitalRead(AD1) << 1;
-  Address |= digitalRead(AD2) << 2;
-  Address |= digitalRead(AD3) << 3;
-  Address |= digitalRead(AD4) << 4;
-  Address |= digitalRead(AD5) << 5;
-  Address |= digitalRead(AD6) << 6;
-  Address |= digitalRead(AD7) << 7;
-  Address |= digitalRead(A8)  << 8;
-  Address |= digitalRead(A9)  << 9;
-  Address |= digitalRead(A10) << 10;
-  Address |= digitalRead(A11) << 11;
-  Address |= digitalRead(A12) << 12;
-  Address |= digitalRead(A13) << 13;
-  Address |= digitalRead(A14) << 14;
-  Address |= digitalRead(A15) << 15;
-  Address |= digitalRead(A16) << 16;
-  Address |= digitalRead(A17) << 17;
-  Address |= digitalRead(A18) << 18;
-  Address |= digitalRead(A19) << 19;
-  return Address;
+static uint32_t addrBusRead(void) {
+  uint32_t addr = 0;
+  addr |= digitalRead(PIN_AD0) << 0;
+  addr |= digitalRead(PIN_AD1) << 1;
+  addr |= digitalRead(PIN_AD2) << 2;
+  addr |= digitalRead(PIN_AD3) << 3;
+  addr |= digitalRead(PIN_AD4) << 4;
+  addr |= digitalRead(PIN_AD5) << 5;
+  addr |= digitalRead(PIN_AD6) << 6;
+  addr |= digitalRead(PIN_AD7) << 7;
+  addr |= digitalRead(PIN_A8)  << 8;
+  addr |= digitalRead(PIN_A9)  << 9;
+  addr |= digitalRead(PIN_A10) << 10;
+  addr |= digitalRead(PIN_A11) << 11;
+  addr |= digitalRead(PIN_A12) << 12;
+  addr |= digitalRead(PIN_A13) << 13;
+  addr |= digitalRead(PIN_A14) << 14;
+  addr |= digitalRead(PIN_A15) << 15;
+  addr |= digitalRead(PIN_A16) << 16;
+  addr |= digitalRead(PIN_A17) << 17;
+  addr |= digitalRead(PIN_A18) << 18;
+  addr |= digitalRead(PIN_A19) << 19;
+  return addr;
 }
 
 // Reads the IO_M, RD, WR pins
-static uint8_t Read_Control_Bus(void) {
-  uint8_t Control_Bus = 0;
-  Control_Bus |= digitalRead(PIN_DTR)  << 0;
-  Control_Bus |= digitalRead(PIN_IO_M) << 1;
-  Control_Bus |= digitalRead(PIN_INTA) << 2;
-  return Control_Bus;
+static uint8_t ctrlBusRead(void) {
+  uint8_t ctrl = 0;
+  ctrl |= digitalRead(PIN_DTR)  << 0;
+  ctrl |= digitalRead(PIN_IO_M) << 1;
+  ctrl |= digitalRead(PIN_INTA) << 2;
+  return ctrl;
 }
 
 // Sets the Data Port direction for read and writes
-static void Data_Bus_Direction_8088_IN(void) {
-  pinMode(AD0, INPUT);
-  pinMode(AD1, INPUT);
-  pinMode(AD2, INPUT);
-  pinMode(AD3, INPUT);
-  pinMode(AD4, INPUT);
-  pinMode(AD5, INPUT);
-  pinMode(AD6, INPUT);
-  pinMode(AD7, INPUT);
-}
-
-static void Data_Bus_Direction_8088_OUT(void) {
-  pinMode(AD0, OUTPUT);
-  pinMode(AD1, OUTPUT);
-  pinMode(AD2, OUTPUT);
-  pinMode(AD3, OUTPUT);
-  pinMode(AD4, OUTPUT);
-  pinMode(AD5, OUTPUT);
-  pinMode(AD6, OUTPUT);
-  pinMode(AD7, OUTPUT);
+static void dataBusDir(int mode) {
+  pinMode(PIN_AD0, mode);
+  pinMode(PIN_AD1, mode);
+  pinMode(PIN_AD2, mode);
+  pinMode(PIN_AD3, mode);
+  pinMode(PIN_AD4, mode);
+  pinMode(PIN_AD5, mode);
+  pinMode(PIN_AD6, mode);
+  pinMode(PIN_AD7, mode);
 }
 
 // Writes Data to Data Port 0-7
-void Write_To_Data_Port_0_7(uint8_t Byte) {
-  digitalWrite(AD0, (Byte >> 0) & 1);
-  digitalWrite(AD1, (Byte >> 1) & 1);
-  digitalWrite(AD2, (Byte >> 2) & 1);
-  digitalWrite(AD3, (Byte >> 3) & 1);
-  digitalWrite(AD4, (Byte >> 4) & 1);
-  digitalWrite(AD5, (Byte >> 5) & 1);
-  digitalWrite(AD6, (Byte >> 6) & 1);
-  digitalWrite(AD7, (Byte >> 7) & 1);
+void dataBusWrite(uint8_t data) {
+  digitalWrite(PIN_AD0, (data >> 0) & 1);
+  digitalWrite(PIN_AD1, (data >> 1) & 1);
+  digitalWrite(PIN_AD2, (data >> 2) & 1);
+  digitalWrite(PIN_AD3, (data >> 3) & 1);
+  digitalWrite(PIN_AD4, (data >> 4) & 1);
+  digitalWrite(PIN_AD5, (data >> 5) & 1);
+  digitalWrite(PIN_AD6, (data >> 6) & 1);
+  digitalWrite(PIN_AD7, (data >> 7) & 1);
 }
 
 // Reads Data to Data Port 0-7
-static uint8_t Read_From_Data_Port_0_7(void) {
+static uint8_t dataBusRead(void) {
   uint8_t ret = 0;
-  ret |= digitalRead(AD0) << 0;
-  ret |= digitalRead(AD1) << 1;
-  ret |= digitalRead(AD2) << 2;
-  ret |= digitalRead(AD3) << 3;
-  ret |= digitalRead(AD4) << 4;
-  ret |= digitalRead(AD5) << 5;
-  ret |= digitalRead(AD6) << 6;
-  ret |= digitalRead(AD7) << 7;
+  ret |= digitalRead(PIN_AD0) << 0;
+  ret |= digitalRead(PIN_AD1) << 1;
+  ret |= digitalRead(PIN_AD2) << 2;
+  ret |= digitalRead(PIN_AD3) << 3;
+  ret |= digitalRead(PIN_AD4) << 4;
+  ret |= digitalRead(PIN_AD5) << 5;
+  ret |= digitalRead(PIN_AD6) << 6;
+  ret |= digitalRead(PIN_AD7) << 7;
   return ret;
 }
 
-// Clicks the CLK pin
-static void CLK() {
+// Clicks the clk pin
+static void clk() {
   static const uint32_t clocks = 12;
   for (uint32_t i=0; i<clocks; ++i) {
     digitalWrite(PIN_CLK, HIGH);
@@ -187,11 +160,12 @@ static void CLK() {
     digitalWrite(PIN_CLK, LOW);
   }
   ++cycles;
+  ++tstate;
 }
 
 // Sets up Raspberry PI pins in the begining
 static void Setup(void) {  
-  Running = true;
+  running = true;
   
   wiringPiSetup();
 
@@ -206,148 +180,127 @@ static void Setup(void) {
   pinMode(PIN_INTA,  INPUT);
   digitalWrite(PIN_INTR, LOW);
 
-  pinMode(AD0, INPUT);
-  pinMode(AD1, INPUT);
-  pinMode(AD2, INPUT);
-  pinMode(AD3, INPUT);
-  pinMode(AD4, INPUT);
-  pinMode(AD5, INPUT);
-  pinMode(AD6, INPUT);
-  pinMode(AD7, INPUT);
-  pinMode(A8,  INPUT);
-  pinMode(A9,  INPUT);
-  pinMode(A10, INPUT);
-  pinMode(A11, INPUT);
-  pinMode(A12, INPUT);
-  pinMode(A13, INPUT);
-  pinMode(A14, INPUT);
-  pinMode(A15, INPUT);
-  pinMode(A16, INPUT);
-  pinMode(A17, INPUT);
-  pinMode(A18, INPUT);
-  pinMode(A19, INPUT);
+  pinMode(PIN_AD0, INPUT);
+  pinMode(PIN_AD1, INPUT);
+  pinMode(PIN_AD2, INPUT);
+  pinMode(PIN_AD3, INPUT);
+  pinMode(PIN_AD4, INPUT);
+  pinMode(PIN_AD5, INPUT);
+  pinMode(PIN_AD6, INPUT);
+  pinMode(PIN_AD7, INPUT);
+  pinMode(PIN_A8,  INPUT);
+  pinMode(PIN_A9,  INPUT);
+  pinMode(PIN_A10, INPUT);
+  pinMode(PIN_A11, INPUT);
+  pinMode(PIN_A12, INPUT);
+  pinMode(PIN_A13, INPUT);
+  pinMode(PIN_A14, INPUT);
+  pinMode(PIN_A15, INPUT);
+  pinMode(PIN_A16, INPUT);
+  pinMode(PIN_A17, INPUT);
+  pinMode(PIN_A18, INPUT);
+  pinMode(PIN_A19, INPUT);
 }
 
-static void Bus_Cycle_Mem_Read_88(uint32_t Address) {
-  Data_Bus_Direction_8088_OUT();
-  const uint8_t data = pi86MemRead8(Address);
-  Write_To_Data_Port_0_7(data);
-  CLK();
-  CLK();
-  Data_Bus_Direction_8088_IN();
+static void busCycleMemRead(uint32_t addr) {
+
+  dataBusDir(OUTPUT);
+  const uint8_t data = pi86MemRead8(addr);
+  dataBusWrite(data);
+  clk();  // T3
+
+  clk();  // T4
+  dataBusDir(INPUT);
 }
 
-static void Bus_Cycle_Mem_Write_88(uint32_t Address) {
-  const uint8_t data = Read_From_Data_Port_0_7();
-  pi86MemWrite8(Address, data);
-  CLK();
-  CLK();
+static void busCycleMemWrite(uint32_t addr) {
+
+  const uint8_t data = dataBusRead();
+  pi86MemWrite8(addr, data);
+  clk();  // T3
+
+  clk();  // T4
 }
 
-static void Bus_Cycle_Io_Read_88(uint32_t Address) {
-  Data_Bus_Direction_8088_OUT();
-  const uint8_t data = pi86IoRead8(Address);  
-  Write_To_Data_Port_0_7(data);
-  CLK();
-  CLK();
-  Data_Bus_Direction_8088_IN();
+static void busCycleIoRead(uint32_t addr) {
+
+  dataBusDir(OUTPUT);
+  const uint8_t data = pi86IoRead8(addr);  
+  dataBusWrite(data);
+  clk();  // T3
+
+  clk();  // T4
+  dataBusDir(INPUT);
 }
 
-static void Bus_Cycle_Io_Write_88(uint32_t Address) {
-  const uint8_t data = Read_From_Data_Port_0_7();
-  pi86IoWrite8(Address, data);
-  CLK();
-  CLK();
+static void busCycleIoWrite(uint32_t addr) {
+
+  const uint8_t data = dataBusRead();
+  pi86IoWrite8(addr, data);
+  clk();  // T3
+
+  clk();  // T4
 }
 
-static void Int_Ack(void) {
+static void busCycleInterrupt(void) {
+
+  // get interrupt type
+  uint8_t type = 0x8;
   if (pi86ExtIntAck) {
-    pi86ExtIntAck();
+    type = pi86ExtIntAck();
   }
-}
 
-static void Bus_Cycle_Interrupt_88(void) {
   // Waits for second INTA bus cycle 4 CLKS 8088
-  CLK();
-  CLK();
-  CLK();
-  CLK();
-  switch (Read_Interrupts()) {
-  case 0x01:
-  case 0x03:  // note: IRQ0 has priority
-    Data_Bus_Direction_8088_OUT();
-    Write_To_Data_Port_0_7(0x08);
-    CLK();
-    CLK();
-    Data_Bus_Direction_8088_IN();
-    IRQ0_Flag = false;
-    digitalWrite(PIN_INTR, LOW);
-    break;
-  case 0x02:
-    Data_Bus_Direction_8088_OUT();
-    Write_To_Data_Port_0_7(0x09);
-    CLK();
-    CLK();
-    Data_Bus_Direction_8088_IN();
-    IRQ1_Flag = false;
-    digitalWrite(PIN_INTR, LOW);
-    break;
-  }
-  Int_Ack();
+  clk();  // T3
+  clk();  // T4
+
+  clk();  // T1
+  clk();  // T2
+
+  dataBusDir(OUTPUT);
+  dataBusWrite(type); 
+  clk();  // T3
+
+  clk();  // T4
+
+  dataBusDir(INPUT);
+  digitalWrite(PIN_INTR, LOW);
 }
 
-static void Bus_Cycle_88(void) {
+static void busCycle(void) {
 
     // todo: if no ALE is detected after X cycles the CPU might be in a hlt state
 
-    CLK();
+    tstate = 0;
+    clk();  // T1
     if (digitalRead(PIN_ALE) != 1) {
       return;
     }
 
-    const uint32_t Address = Read_Address();
-    CLK();
-    switch (Read_Control_Bus()) {
-    // Read Mem
-    case 0b100:
-      Bus_Cycle_Mem_Read_88(Address);
-      break;
-    // Write Mem
-    case 0b101:
-      Bus_Cycle_Mem_Write_88(Address);
-      break;
-    // Read IO
-    case 0b110:
-      Bus_Cycle_Io_Read_88(Address);
-      break;
-    // Write IO
-    case 0b111:
-      Bus_Cycle_Io_Write_88(Address);
-      break;
-    // Interrupt
-    case 0b010:
-      Bus_Cycle_Interrupt_88();
+    const uint32_t addr = addrBusRead();
+    clk();  // T2
+
+    switch (ctrlBusRead()) {  // {INTA, IO_M, DTR}
+    case 0b100: busCycleMemRead  (addr); break;
+    case 0b101: busCycleMemWrite (addr); break;
+    case 0b110: busCycleIoRead   (addr); break;
+    case 0b111: busCycleIoWrite  (addr); break;
+    case 0b010: busCycleInterrupt();
       break;
     }
 }
 
 void pi86BusCycle(uint32_t count) {
   while (count--) {
-    Bus_Cycle_88();
+    busCycle();
   }
 }
 
-// Resest the x86
 void pi86Reset(void) {
   digitalWrite(PIN_RESET, HIGH);
-  CLK();
-  CLK();
-  CLK();
-  CLK();
-  CLK();
-  CLK();
-  CLK();
-  CLK();
+  for (uint32_t i=8; i--;) {
+    clk();
+  }
   digitalWrite(PIN_RESET, LOW);
 }
 
@@ -357,13 +310,17 @@ void pi86Start() {
 }
 
 void pi86Stop(void) {
-  Running = false;
+  running = false;
 }
 
-bool pi86Running(void) {
-  return Running;
+bool pi86running(void) {
+  return running;
 }
 
 uint64_t pi86CycleCount(void) {
   return cycles;
+}
+
+uint32_t pi86TState(void) {
+  return tstate;
 }
