@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <string>
+#include <assert.h>
 
 #include "SDL.h"
 #include "drives.h"
@@ -18,6 +19,7 @@ using namespace std;
 static bool keyboard(void);
 static void display(SDL_Window *Window, SDL_Renderer *Renderer);
 
+#if 0
 static bool clk_interval(uint32_t &clk, const uint32_t hz) {
   
   const uint32_t threshold = 1000 / hz;
@@ -36,6 +38,19 @@ static bool clk_interval(uint32_t &clk, const uint32_t hz) {
   
   return false;
 }
+#else
+static bool clk_interval(uint32_t &clk, const uint32_t elapsed, const uint32_t reload) {
+  if (elapsed >= clk) {
+    assert(reload >= elapsed);
+    clk += reload - elapsed;
+    return true;
+  }
+  else {
+    clk -= elapsed;
+    return false;
+  }
+}
+#endif
 
 int main(int argc, char *argv[]) {
 
@@ -48,36 +63,42 @@ int main(int argc, char *argv[]) {
                             SDL_WINDOWPOS_UNDEFINED,
                             720,
                             400,
-                            SDL_WINDOW_OPENGL
+                            0
   );
 
-  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  renderer = SDL_CreateRenderer(window, -1, 0);
 
   pi86LoadBios("bios.bin");
 
-  pi86Start(V20);
+  pi86Start();
 
   // Drive images a: and C:
   Start_Drives("floppy.img", "hdd.img");
 
-  uint32_t clk_keyboard = 0;
-  uint32_t clk_display  = 0;
-  uint32_t clk_timer    = 0;
+  const uint32_t clk_freq = 300000;  // 4.77Mhz
+  const uint32_t cycles_vga = clk_freq / 25;
+  const uint32_t cycles_pit = clk_freq / 18;
+
+  uint32_t clk_display = 0;
+  uint32_t clk_timer   = 0;
+
 
   while (pi86Running()) {
 
-    pi86BusCycle(20000);
+    const uint32_t cycles = min( clk_display, clk_timer );
+
+    pi86BusCycle(cycles);
 
     while (keyboard());
-    
+
     // 25hz
-    if (clk_interval(clk_display, /*hz=*/25)) {
+    if (clk_interval(clk_display, cycles, cycles_vga)) {
       display(window, renderer);
     }
 
     // 18hz (pit channel 0) (~18.206313949678hz)
-    if (clk_interval(clk_timer, /*hz=*/18)) {
-      pi86Irq0();
+    if (clk_interval(clk_timer, cycles, cycles_pit)) {
+      pi86Irq(0);
     }
 
     // Check for stop command
@@ -217,7 +238,7 @@ static bool keyboard(void) {
     }
 
     pi86IoWrite8(0x0060, scan_codes[e.key.keysym.scancode]);
-    pi86Irq1();
+    pi86Irq(1);
   }
   
   return true;

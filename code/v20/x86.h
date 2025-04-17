@@ -4,11 +4,8 @@
 #include <fstream>
 #include <string>
 
-#define V20 88
-#define V30 86
-
 void     pi86Reset      (void);
-void     pi86Start      (int Processor);
+void     pi86Start      (void);
 void     pi86Stop       (void);
 bool     pi86Running    (void);
 bool     pi86LoadBios   (const std::string &Bios_file);
@@ -21,6 +18,6 @@ void     pi86MemWritePtr(uint32_t addr, const uint8_t *src, uint32_t size);
 void     pi86IoWrite8   (uint32_t addr, uint8_t  data);
 void     pi86IoWrite16  (uint32_t addr, uint16_t data);
 uint8_t  pi86IoRead8    (uint32_t addr);
-void     pi86Irq0       (void);
-void     pi86Irq1       (void);
+void     pi86Irq        (uint8_t line);
 void     pi86BusCycle   (uint32_t cycles);
+void     pi86Trace      (uint32_t cycles);
