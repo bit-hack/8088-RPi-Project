@@ -10,20 +10,15 @@
 // Disk Handler
 ///////////////////
 
-static std::string drive_A; // Floppy A:  img file
-static std::string drive_C; // Hard Drive C:  img file
+static FILE *driveA;
+static FILE *driveC;
 
 static bool Get_Disk_Parameters_A() {
 
   char Floppy[0x200]; // Char array to hold the data only reading first sector
-  
-  FILE *fd = fopen(drive_A.c_str(), "r");
-  if (!fd) {
-    return false;
-  }
 
-  fread(Floppy, 1, sizeof(Floppy), fd);
-  fclose(fd);
+  fseek(driveA, 0, SEEK_SET);
+  fread(Floppy, 1, sizeof(Floppy), driveA);
   
   char Media_Descriptor[0x10] = {0x04, 0,    0, 0, 0, 0,    0, 0,
                                  0xF8, 0x02, 0, 0, 0, 0x01, 0, 0};
@@ -56,15 +51,10 @@ static bool Get_Disk_Parameters_A() {
 
 static bool Get_Disk_Parameters_C() {
 
-  FILE *fd = fopen(drive_C.c_str(), "rb");
-  if (!fd) {
-    return false;
-  }
-
-  fseek(fd, 0, SEEK_SET);
+  fseek(driveC, 0, SEEK_SET);
 
   uint8_t drive[0x200] = { 0 };
-  fread(drive, 1, sizeof(drive), fd);
+  fread(drive, 1, sizeof(drive), driveC);
 
   int Hidden_Sectors = 0;
 
@@ -75,17 +65,14 @@ static bool Get_Disk_Parameters_C() {
   else if (drive[0x1EE] == 0x80) { Hidden_Sectors = drive[0x1F6] | (drive[0x1F7] << 8) | (drive[0x1F8] << 16) | (drive[0x1F9] << 24); }
   else {
     // No boot partion MBR
-    fclose(fd);
     pi86Stop();
-    usleep(20000);  // ?
     printf("No boot partion in MBR C: \n");
     return false;
   }
 
   // Read volume boot record
-  fseek(fd, 0x200 * Hidden_Sectors, SEEK_SET);
-  fread(drive, 1, sizeof(drive), fd);
-  fclose(fd);
+  fseek(driveC, 0x200 * Hidden_Sectors, SEEK_SET);
+  fread(drive, 1, sizeof(drive), driveC);
 
   pi86MemWrite8(0xF800C, drive[0x1A]); // Low byte heads per cylinder - DH-1
   pi86MemWrite8(0xF800D, drive[0x1B]); // High byte heads per cylinder
@@ -158,9 +145,9 @@ static void Int13(void) {
                               (int13_data[8]  <<  8) +
                               (int13_data[7]  <<  0);
 
-      FILE *fd = nullptr;
-      if (Drive == 0x00) { fd = fopen(drive_A.c_str(), "rb"); }
-      if (Drive == 0x80) { fd = fopen(drive_C.c_str(), "rb"); }
+      FILE *fd = (Drive == 0x00) ? driveA :
+                 (Drive == 0x80) ? driveC :
+                 nullptr;
 
       if (fd) {
         const uint32_t offset = LBA * Bytes_Per_Sector;
@@ -169,7 +156,6 @@ static void Int13(void) {
         uint8_t drive[size] = {0};
         fread(drive, 1, size, fd);
         pi86MemWritePtr(Buffer_Address, drive, size);
-        fclose(fd);
       }
     }
 
@@ -192,15 +178,14 @@ static void Int13(void) {
       uint8_t drive[size] = { 0 };
       pi86MemReadPtr(Buffer_Address, drive, sizeof(drive));
 
-      FILE *fd = nullptr;
-      if (Drive == 0x00) { fd = fopen(drive_A.c_str(), "rb"); }
-      if (Drive == 0x80) { fd = fopen(drive_C.c_str(), "rb"); }
+      FILE *fd = (Drive == 0x00) ? driveA :
+                 (Drive == 0x80) ? driveC :
+                 nullptr;
 
       if (fd) {
         const uint32_t offset = LBA * Bytes_Per_Sector;
         fseek(fd, offset, SEEK_SET);
         fwrite(drive, 1, size, fd);
-        fclose(fd);
       }
     }
 
@@ -220,14 +205,24 @@ static void Int13(void) {
   }
 }
 
-void pollInt13(void) {
+void drivesPollInt13(void) {
   const uint8_t Int13_Command = pi86MemRead8(0xF8000);
   if (Int13_Command != 0XFF) {
     Int13();
   }
 }
 
-void Start_Drives(std::string Floppy, std::string Hard_Drive) {
-  drive_A = Floppy;
-  drive_C = Hard_Drive;
+bool drivesStart(const std::string &fdd, const std::string &hdd) {
+
+  driveA = fopen(fdd.c_str(), "ab+");
+  if (!driveA) {
+    return false;
+  }
+
+  driveC = fopen(hdd.c_str(), "ab+");
+  if (!driveC) {
+    return false;
+  }
+
+  return true;
 }

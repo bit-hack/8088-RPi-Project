@@ -19,26 +19,6 @@ using namespace std;
 static bool keyboard(void);
 static void display(SDL_Window *Window, SDL_Renderer *Renderer);
 
-#if 0
-static bool clk_interval(uint32_t &clk, const uint32_t hz) {
-  
-  const uint32_t threshold = 1000 / hz;
-  
-  const uint32_t diff = SDL_GetTicks() - clk;
-  
-  if (clk == 0) {
-    clk = diff;
-    return false;
-  }
-  
-  if (diff >= threshold) {
-    clk += threshold;
-    return true;
-  }
-  
-  return false;
-}
-#else
 static bool clk_interval(uint32_t &clk, const uint32_t elapsed, const uint32_t reload) {
   if (elapsed >= clk) {
     assert(reload >= elapsed);
@@ -50,7 +30,6 @@ static bool clk_interval(uint32_t &clk, const uint32_t elapsed, const uint32_t r
     return false;
   }
 }
-#endif
 
 int main(int argc, char *argv[]) {
 
@@ -58,7 +37,7 @@ int main(int argc, char *argv[]) {
   SDL_Renderer *renderer = nullptr;
   SDL_Init(SDL_INIT_VIDEO);
 
-  window = SDL_CreateWindow("x86",
+  window = SDL_CreateWindow("pi86",
                             SDL_WINDOWPOS_UNDEFINED,
                             SDL_WINDOWPOS_UNDEFINED,
                             720,
@@ -68,12 +47,16 @@ int main(int argc, char *argv[]) {
 
   renderer = SDL_CreateRenderer(window, -1, 0);
 
-  pi86LoadBios("bios.bin");
+  if (!pi86LoadBios("bios/bios.bin")) {
+    return 1;
+  }
 
   pi86Start();
 
   // Drive images a: and C:
-  Start_Drives("floppy.img", "hdd.img");
+  if (!drivesStart("img/floppy.img", "img/hdd.img")) {
+    return 1;
+  }
 
   const uint32_t clk_freq = 300000;  // 4.77Mhz
   const uint32_t cycles_vga = clk_freq / 25;
@@ -81,7 +64,6 @@ int main(int argc, char *argv[]) {
 
   uint32_t clk_display = 0;
   uint32_t clk_timer   = 0;
-
 
   while (pi86Running()) {
 

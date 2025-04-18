@@ -2,5 +2,5 @@
 
 #include <string>
 
-void Start_Drives(std::string Floppy, std::string Hard_Drive);
-void pollInt13(void);
+bool drivesStart(const std::string &fdd, const std::string &hdd);
+void drivesPollInt13(void);

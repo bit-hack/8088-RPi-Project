@@ -362,7 +362,7 @@ INT08: ;Reserved
 ;INT 0X09	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 DB 'INT 0X09'
-%INCLUDE "asm/int09.asm"
+%INCLUDE "int09.asm"
 
 INT0A: ;Reserved
 	CLI
@@ -435,7 +435,7 @@ INT0F: ;Printer
 ;INT 0X10	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 DB 'INT 0X10'
-%INCLUDE "asm/int10.asm"
+%INCLUDE "int10.asm"
 
 INT11: ;Equipment Check	
 	CLI							;CLEAR INTERRUPS FLAG
@@ -465,7 +465,7 @@ INT12: ;Memory
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;INT 0X13
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-%INCLUDE "asm/int13.asm"
+%INCLUDE "int13.asm"
 	
 INT14: ;Communications
 	IRET
@@ -797,5 +797,5 @@ WIRTE_AL_INT10_E:
 
 	RET
 
-%INCLUDE "asm/keycodes.asm"	
+%INCLUDE "keycodes.asm"	
 DB 'END OF BIOS FILE'

@@ -208,7 +208,6 @@ static uint8_t Read_From_Data_Port_8_15(void) {
   return ret;
 }
 
-// Clicks the CLK pin
 static void CLK() {
 
   static const uint32_t clocks = 12;
@@ -306,7 +305,7 @@ static void Bus_Cycle_Io_Write_88(uint32_t Address) {
 
 static void Bus_Cycle_Interrupt_88(void) {
 
-  pi86Trace(512);
+  //pi86Trace(512);
 
   // Waits for second INTA bus cycle 4 CLKS 8088
   CLK();
@@ -397,18 +396,13 @@ void pi86MemWrite8(uint32_t addr, uint8_t data) {
   RAM[addr] = data;
 
   if (addr == 0xF8000) {
-    // int13h handler
-    pollInt13();
+    // poll in case this is an int13 handler request
+    drivesPollInt13();
   }
 }
 
 uint8_t pi86MemRead8(uint32_t addr) {
   return RAM[addr];
-}
-
-void pi86MemWrite16(uint32_t addr, uint16_t data) {
-  pi86MemWrite8(addr + 0, data >> 0);
-  pi86MemWrite8(addr + 1, data >> 8);
 }
 
 void pi86IoWrite8(uint32_t addr, uint8_t data) {
@@ -417,11 +411,6 @@ void pi86IoWrite8(uint32_t addr, uint8_t data) {
 
 uint8_t pi86IoRead8(uint32_t addr) {
   return IO[addr];
-}
-
-void pi86IoWrite16(uint32_t addr, uint16_t data) {
-  pi86IoWrite8(addr + 0, data >> 0);
-  pi86IoWrite8(addr + 1, data >> 8);
 }
 
 // Resest the x86
@@ -439,7 +428,6 @@ void pi86Reset(void) {
 }
 
 void pi86Start() {
-  // Sets up Ports
   Setup();
   pi86Reset();
 }
