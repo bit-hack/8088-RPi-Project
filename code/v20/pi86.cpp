@@ -9,8 +9,7 @@
 #include "drives.h"
 #include "vga.h"
 #include "x86.h"
-
-#include "keycodes.h"
+#include "keyboard.h"
 
 // TODO: convert to using SDL surface not renderer
 
@@ -110,26 +109,31 @@ static void display(SDL_Surface *screen) {
   }
 }
 
-static void Insert_Key(char character_code, char scan_code) {
+static void keyInsert(const SDL_Event &e) {
 
-  char Key_Buffer_Tail = pi86MemRead8(
-      0x041C); // Read the position of the keyboard buffer tail pointer
-  pi86MemWrite8(0x400 + Key_Buffer_Tail,
-                    character_code); // Write Character code at the keyboard
-                                     // buffer tail pointer
-  pi86MemWrite8(
-      0x401 + Key_Buffer_Tail,
-      scan_code); // Write scan code at the keyboard buffer tail pointer
-  Key_Buffer_Tail =
-      Key_Buffer_Tail + 2; // Add 2 to the keyboard buffer tail pointer
-  if (Key_Buffer_Tail >=
-      pi86MemRead8(0x0482)) // Check to see if the keyboard buffer tail
-                                // pointer is at the end of the buffer
+  char character_code = (e.key.keysym.mod & KMOD_LSHIFT) ? keyCharCodeUpper(e.key.keysym.sym) :
+                                                           keyCharCodeLower(e.key.keysym.sym);
+  char scan_code      = keyScanCode(e.key.keysym.sym);
+
+  uint8_t kb_flag_0 = pi86MemRead8(0x417);
+  uint8_t kb_flag_1 = pi86MemRead8(0x418);
+
+  uint16_t bios_data_area = 0x400;
+
+  uint16_t start = pi86MemRead8(0x0480);
+  uint16_t end   = pi86MemRead8(0x0482);
+  uint8_t tail   = pi86MemRead8(0x041C);
+
+  pi86MemWrite8(bios_data_area + tail + 0, character_code); // Write Character code at the keyboard buffer tail pointer
+  pi86MemWrite8(bios_data_area + tail + 1, scan_code);      // Write scan code at the keyboard buffer tail pointer
+
+  tail = tail + 2;  // Add 2 to the keyboard buffer tail pointer
+  if (tail >= end)  // Check to see if the keyboard buffer tail pointer is at the end of the buffer
   {
-    Key_Buffer_Tail = pi86MemRead8(0x0480);
+    tail = start;
   }
-  pi86MemWrite8(
-      0x041C, Key_Buffer_Tail); // Write the new keyboard buffer tail pointer
+
+  pi86MemWrite8(0x041C, tail);  // Write the new keyboard buffer tail pointer
 }
 
 static bool keyboard(void) {
@@ -145,94 +149,19 @@ static bool keyboard(void) {
   }
 
   if (e.type == SDL_KEYDOWN) {
-    switch (e.key.keysym.mod) {
-    case 0x0000:    //                                            KMOD_NONE
-    case 0x1000:    //                                   KMOD_NUM
-    case 0x0001:    //           KMOD_LSHIFT
-    case 0x0002:    //                       KMOD_RSHIFT
-    case 0x1001:    //           KMOD_LSHIFT             KMOD_NUM
-    case 0x1002:    //                       KMOD_RSHIFT KMOD_NUM
-    case 0x0003:    //           KMOD_LSHIFT KMOD_RSHIFT
-    case 0x1003:    //           KMOD_LSHIFT KMOD_RSHIFT KMOD_NUM
-    case 0x2000:    // KMOD_CAPS
-    case 0x2001:    // KMOD_CAPS KMOD_LSHIFT
-    case 0x2002:    // KMOD_CAPS             KMOD_RSHIFT
-    case 0x2003:    // KMOD_CAPS KMOD_LSHIFT KMOD_RSHIFT
-    case 0x3000:    // KMOD_CAPS                         KMOD_NUM
-    case 0x3001:    // KMOD_CAPS KMOD_LSHIFT             KMOD_NUM
-    case 0x3002:    // KMOD_CAPS             KMOD_RSHIFT KMOD_NUM
-    case 0x3003:    // KMOD_CAPS KMOD_LSHIFT KMOD_RSHIFT KMOD_NUM
+    keyInsert(e);
+    // place keycode in port 60h
+    pi86IoWrite8(0x60, 0x00 | keyScanCode(e.key.keysym.sym));
+    // let CPU know keycode is waiting
+    pi86Irq(1);
+  }
 
-      Insert_Key(character_codes_lowercase[e.key.keysym.scancode], scan_codes[e.key.keysym.scancode]);
-      break;
-
-    // KMOD_LCTRL
-    case 0x0040:
-      if (e.key.keysym.scancode == 0x2A) {
-        pi86Reset();
-      }
-      Insert_Key(character_codes_ctrl[e.key.keysym.scancode],
-                 scan_codes[e.key.keysym.scancode]);
-      break;
-    // KMOD_RCTRL
-    case 0x0080:
-      Insert_Key(character_codes_ctrl[e.key.keysym.scancode],
-                 scan_codes[e.key.keysym.scancode]);
-      break;
-    // KMOD_LALT
-    case 0x0100:
-      if (e.key.keysym.scancode == 0x2A) {
-        pi86MemWrite8(0x00449, 0x02);
-      }
-      Insert_Key(character_codes_ctrl[e.key.keysym.scancode],
-                 scan_codes[e.key.keysym.scancode]);
-      break;
-    // KMOD_RALT
-    case 0x0200:
-      break;
-    }
-
-    pi86IoWrite8(0x0060, scan_codes[e.key.keysym.scancode]);
+  if (e.type == SDL_KEYUP) {
+    // place keycode in port 60h
+    pi86IoWrite8(0x60, 0x80 | keyScanCode(e.key.keysym.sym));
+    // let CPU know keycode is waiting
     pi86Irq(1);
   }
   
   return true;
 }
-
-/*		X86 keyboard flag
-
-                |7|6|5|4|3|2|1|0|  40:17  Keyboard Flags Byte 0
-                 | | | | | | | `---- right shift key depressed
-                 | | | | | | `----- left shift key depressed
-                 | | | | | `------ CTRL key depressed
-                 | | | | `------- ALT key depressed
-                 | | | `-------- scroll-lock is active
-                 | | `--------- num-lock is active
-                 | `---------- caps-lock is active
-                 `----------- insert is active
-
-                |7|6|5|4|3|2|1|0|  40:18  Keyboard Flags Byte 1
-                 | | | | | | | `---- left CTRL key depressed
-                 | | | | | | `----- left ALT key depressed
-                 | | | | | `------ system key depressed and held
-                 | | | | `------- suspend key has been toggled
-                 | | | `-------- scroll lock key is depressed
-                 | | `--------- num-lock key is depressed
-                 | `---------- caps-lock key is depressed
-                 `----------- insert key is depressed */
-
-/*
-    KMOD_NONE     = 0x0000,
-    KMOD_LSHIFT   = 0x0001,
-    KMOD_RSHIFT   = 0x0002,
-    KMOD_LCTRL    = 0x0040,
-    KMOD_RCTRL    = 0x0080,
-    KMOD_LALT     = 0x0100,
-    KMOD_RALT     = 0x0200,
-    KMOD_LGUI     = 0x0400,
-    KMOD_RGUI     = 0x0800,
-    KMOD_NUM      = 0x1000,
-    KMOD_CAPS     = 0x2000,
-    KMOD_MODE     = 0x4000,
-    KMOD_RESERVED = 0x8000
-*/
