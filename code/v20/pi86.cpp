@@ -5,19 +5,19 @@
 #include <assert.h>
 
 #include "SDL.h"
+
 #include "drives.h"
-#include "font.h"
-#include "keycodes.h"
 #include "vga.h"
 #include "x86.h"
 
+#include "keycodes.h"
 
 // TODO: convert to using SDL surface not renderer
 
 using namespace std;
 
 static bool keyboard(void);
-static void display(SDL_Window *Window, SDL_Renderer *Renderer);
+static void display(SDL_Surface *surf);
 
 static bool clk_interval(uint32_t &clk, const uint32_t elapsed, const uint32_t reload) {
   if (elapsed >= clk) {
@@ -33,19 +33,12 @@ static bool clk_interval(uint32_t &clk, const uint32_t elapsed, const uint32_t r
 
 int main(int argc, char *argv[]) {
 
-  SDL_Window   *window   = nullptr;
-  SDL_Renderer *renderer = nullptr;
   SDL_Init(SDL_INIT_VIDEO);
-
-  window = SDL_CreateWindow("pi86",
-                            SDL_WINDOWPOS_UNDEFINED,
-                            SDL_WINDOWPOS_UNDEFINED,
-                            720,
-                            400,
-                            0
-  );
-
-  renderer = SDL_CreateRenderer(window, -1, 0);
+  
+  SDL_Surface *screen = SDL_SetVideoMode(720, 400, 32, 0);
+  if (!screen) {
+    return 1;
+  }
 
   if (!pi86LoadBios("bios/bios.bin")) {
     return 1;
@@ -75,7 +68,7 @@ int main(int argc, char *argv[]) {
 
     // 25hz
     if (clk_interval(clk_display, cycles, cycles_vga)) {
-      display(window, renderer);
+      display(screen);
     }
 
     // 18hz (pit channel 0) (~18.206313949678hz)
@@ -91,10 +84,6 @@ int main(int argc, char *argv[]) {
   }
 
   printf("%s shutdown\n", __func__);
-
-  // Close and destroy the window
-  SDL_DestroyRenderer(renderer);
-  SDL_DestroyWindow(window);
   
   // Clean up
   SDL_Quit();
@@ -102,37 +91,22 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-static void display(SDL_Window *Window, SDL_Renderer *Renderer) {
-  uint8_t Vblank[0x4000];
-  uint8_t Video_Memory_40x25[2000];
-  uint8_t Video_Memory_80x25[4000];
-  uint8_t Video_Memory_320x200[0x4000];
-  uint8_t Cursor_Position[2];
+static void display(SDL_Surface *screen) {
 
-  if (pi86MemRead8(0x00449) == 0x00 |
-      pi86MemRead8(0x00449) == 0x01) {
-    pi86MemReadPtr(0xB8000, Video_Memory_40x25, 2000);
-    pi86MemReadPtr(0x00450, Cursor_Position, 2);
-    Mode_0_40x25(Renderer, Video_Memory_40x25, Cursor_Position);
-  }
+  const uint8_t *mem = pi86MemPtr(0xB8000);
+  const uint8_t *cur = pi86MemPtr(0x00450);
 
-  if (pi86MemRead8(0x00449) == 0x02 |
-      pi86MemRead8(0x00449) == 0x03) {
-    pi86MemReadPtr(0xB8000, Video_Memory_80x25, 4000);
-    pi86MemReadPtr(0x00450, Cursor_Position, 2);
-    Mode_2_80x25(Renderer, Video_Memory_80x25, Cursor_Position);
-  }
+  const uint32_t mode = pi86MemRead8(0x00449);
 
-  if (pi86MemRead8(0x00449) == 0x04 &
-      pi86MemRead8(0x00466) == 0x00) {
-    pi86MemReadPtr(0xB8000, Video_Memory_320x200, 0x4000);
-    Graphics_Mode_320_200_Palette_0(Renderer, Video_Memory_320x200);
-  }
-
-  if (pi86MemRead8(0x00449) == 0x04 &
-      pi86MemRead8(0x00466) == 0x01) {
-    pi86MemReadPtr(0xB8000, Video_Memory_320x200, 0x4000);
-    Graphics_Mode_320_200_Palette_1(Renderer, Video_Memory_320x200);
+  switch (mode) {
+  case 0:
+  case 1:
+    Mode_0_40x25(screen, mem, cur);
+    break;
+  case 2:
+  case 3:
+    Mode_2_80x25(screen, mem, cur);
+    break;
   }
 }
 
@@ -172,12 +146,11 @@ static bool keyboard(void) {
 
   if (e.type == SDL_KEYDOWN) {
     switch (e.key.keysym.mod) {
-
-    case 0x0000:    // KMOD_NONE
+    case 0x0000:    //                                            KMOD_NONE
     case 0x1000:    //                                   KMOD_NUM
-    case 0x0001:    // KMOD_LSHIFT
+    case 0x0001:    //           KMOD_LSHIFT
     case 0x0002:    //                       KMOD_RSHIFT
-    case 0x1001:    // KMOD_LSHIFT                       KMOD_NUM
+    case 0x1001:    //           KMOD_LSHIFT             KMOD_NUM
     case 0x1002:    //                       KMOD_RSHIFT KMOD_NUM
     case 0x0003:    //           KMOD_LSHIFT KMOD_RSHIFT
     case 0x1003:    //           KMOD_LSHIFT KMOD_RSHIFT KMOD_NUM

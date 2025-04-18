@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-const unsigned char _8x8char[256][8] = {
+const uint8_t _8x8char[256][8] = {
     // 00
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // U+0000 (nul)
     {0xFF, 0x41, 0x41, 0x5B, 0x41, 0x41, 0xFF, 0x00}, // U+0001
@@ -295,7 +295,7 @@ const unsigned char _8x8char[256][8] = {
      0b00000000, 0b00000000},
     {0, 0, 0, 0, 0, 0, 0, 0}};
 
-const unsigned long font_9x16[256][16] = {
+const uint16_t font_9x16[256][16] = {
 
     /*
      * code=0, hex=0x00, ascii="^@"
