@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  if (!pi86LoadBios("bios/pcxtbios.bin")) {
+  if (!pi86LoadBios("bios/pcxtbios8k.bin")) {
     return 1;
   }
   if (!pi86LoadRom("bios/disc/disc.bin", 0xf8000)) {
