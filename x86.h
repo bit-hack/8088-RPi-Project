@@ -20,3 +20,4 @@ void     pi86Irq        (uint8_t line);
 void     pi86BusCycle   (uint32_t cycles);
 void     pi86Trace      (uint32_t cycles);
 uint8_t* pi86IoPtr      (uint32_t addr);
+bool     pi86LoadRom    (const std::string &path, uint32_t addr);

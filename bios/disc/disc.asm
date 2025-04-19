@@ -5,42 +5,36 @@ ORG 0X0000
 ;Header so it's recognized as an option card
 DB 0x55
 DB 0xAA
-
-; Uses 8 512-byte pages.  Expand if this grows over 4kb.
+; Uses 8 512-byte pages. Expand if this grows over 4kb.
 DB 0x08
 
-; Code starts here.  Save everything before we start.
-PUSH AX
-PUSH BX
-PUSH CX
-PUSH DX
+    ; Code starts here. Save everything before we start.
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
 
-PUSH DI
-PUSH SI
-PUSH DS
-PUSH ES
+    PUSH DI
+    PUSH SI
+    PUSH DS
+    PUSH ES
 
-CALL MESSAGE_1
-    MOV CX, 0XFFFF
-  DELAY_LOOP1:
-    LOOP DELAY_LOOP1
+    MOV AX, 0X0000
+    MOV DS, AX
+    MOV WORD [0X004E], 0XF800
+    MOV AX, INT13
+    MOV [0X004C], AX
 
-MOV AX, 0X0000
-MOV DS, AX
-MOV WORD [0X004E], 0XF800
-MOV AX, INT13
-MOV [0X004C], AX
+    POP ES
+    POP DS
+    POP SI
+    POP DI
 
-POP ES
-POP DS
-POP SI
-POP DI
-
-POP DX
-POP CX
-POP BX
-POP AX
-RETF            ;RETURN
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RETF            ;RETURN
 
 MESSAGE_1:
     MOV AX, 0X0002
@@ -51,20 +45,20 @@ MESSAGE_1:
     MOV AH, 0X0E
     MOV CX, .END - .MESSAGE
     MOV BX, .MESSAGE
-    .LOOP:
+  .LOOP:
     MOV AL, [BX]
     INT 0X10
     INC BX
     LOOP .LOOP
     RET
-    .MESSAGE:
+  .MESSAGE:
     DB 'BIOS 2.0 Devloped by EMM APR 2023', 0X0D, 0X0A
     DB '8086/V30 or 8088/V20 CPU', 0X0D, 0X0A
     DB '1MB RAM, 64K IO Ports, VGA Graphics', 0X0D, 0X0A
     DB 'bios.bin loaded at 0xF800:0x0000', 0X0D, 0X0A
     DB 'floppy.img mounted - A:', 0X0D, 0X0A
     DB 'hdd.img mounted - C:', 0X0D, 0X0A
-    .END:
+  .END:
 
 
 INT13: ;Diskette/Disk

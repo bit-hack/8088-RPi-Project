@@ -448,6 +448,30 @@ void pi86Start() {
   pi86Reset();
 }
 
+uint8_t *pi86MemPtr(uint32_t addr) {
+  return &RAM[addr];
+}
+
+void pi86Stop(void) {
+  Running = false;
+}
+
+bool pi86Running(void) {
+  return Running;
+}
+
+void pi86Trace(uint32_t cycles) {
+  traceCount = cycles;
+
+#if CFG_VCF
+  Dump_State();
+#endif  // CFG_VCF
+}
+
+uint8_t* pi86IoPtr(uint32_t addr) {
+  return &IO[addr];
+}
+
 bool pi86LoadBios(const string &path) {
 
   FILE *fd = fopen(path.c_str(), "rb");
@@ -471,31 +495,35 @@ bool pi86LoadBios(const string &path) {
   pi86IoWrite8(0xF0FF, 0xFF); //Make sure STOP byte is not zero 0x00 = Stop
   pi86IoWrite8(0xF000, 0xFF); //Make sure int13 command port is 0xFF
   pi86IoWrite8(0xF0F0, 0x03); //Video mode
-  pi86IoWrite8 (0X3DA,   0xFF);
+  pi86IoWrite8(0X3DA,  0xFF);
 
   return true;
 }
 
-uint8_t *pi86MemPtr(uint32_t addr) {
-  return &RAM[addr];
-}
+bool pi86LoadRom(const string &path, uint32_t addr) {
 
-void pi86Stop(void) {
-  Running = false;
-}
+  FILE *fd = fopen(path.c_str(), "rb");
+  if (!fd) {
+    printf("unable to load '%s'\n", path.c_str());
+    return false;
+  }
 
-bool pi86Running(void) {
-  return Running;
-}
+  fseek(fd, 0, SEEK_END);
+  const size_t romSize = ftell(fd);
+  fseek(fd, 0, SEEK_SET);
 
-void pi86Trace(uint32_t cycles) {
-  traceCount = cycles;
+  uint8_t *ptr = pi86MemPtr(addr);
+  fread(ptr, 1, romSize, fd);
+  fclose(fd);
 
-#if CFG_VCF
-  Dump_State();
-#endif  // CFG_VCF
-}
+  const uint32_t size = 512 * ptr[2];
 
-uint8_t* pi86IoPtr(uint32_t addr) {
-  return &IO[addr];
+  uint8_t sum = 0;
+  for (uint32_t i=0; i<(size-1); ++i) {
+    sum += ptr[i];
+  }
+
+  // insert checksum into last byte of rom
+  ptr[size-1] = 0xff & (0x100 - sum);
+  return true;
 }

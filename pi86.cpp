@@ -44,6 +44,9 @@ int main(int argc, char *argv[]) {
   if (!pi86LoadBios("bios/pcxtbios.bin")) {
     return 1;
   }
+  if (!pi86LoadRom("bios/disc/disc.bin", 0xf8000)) {
+    return 1;
+  }
 
   pi86Start();
   //pi86Trace(1024 * 32);
