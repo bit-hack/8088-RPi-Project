@@ -1,9 +1,11 @@
 #include <string>
 #include <cstdio>
 #include <unistd.h>
+#include <string.h>
 
 #include "drives.h"
 #include "x86.h"
+#include "config.h"
 
 
 //////////////////
@@ -23,11 +25,19 @@ static bool Get_Disk_Parameters_A() {
   char Media_Descriptor[0x10] = {0x04, 0,    0, 0, 0, 0,    0, 0,
                                  0xF8, 0x02, 0, 0, 0, 0x01, 0, 0};
   // Start at port 11
+#if NEW_BIOS
+  pi86IoWrite8(0xF00B, Media_Descriptor[Floppy[0x15] & 0x0F]); // Media Descriptor - BL
+  pi86IoWrite8(0xF00C, Floppy[0x1A]); // Low byte heads per cylinder - DH -1
+  pi86IoWrite8(0xF00D, Floppy[0x1B]); // High byte heads per cylinder
+  pi86IoWrite8(0xF00E, Floppy[0x0B]); // Low bytes per sector - uS
+  pi86IoWrite8(0xF00F, Floppy[0x0C]); // High bytes per sector
+#else
   pi86MemWrite8(0xF800B, Media_Descriptor[Floppy[0x15] & 0x0F]); // Media Descriptor - BL
   pi86MemWrite8(0xF800C, Floppy[0x1A]); // Low byte heads per cylinder - DH -1
   pi86MemWrite8(0xF800D, Floppy[0x1B]); // High byte heads per cylinder
   pi86MemWrite8(0xF800E, Floppy[0x0B]); // Low bytes per sector - uS
   pi86MemWrite8(0xF800F, Floppy[0x0C]); // High bytes per sector
+#endif
 
   int Head_Per_Cylinder = (Floppy[0x1B] << 8) + Floppy[0x1A];
   int Sector_Per_Track = (Floppy[0x19] << 8) + Floppy[0x18];
@@ -35,16 +45,29 @@ static bool Get_Disk_Parameters_A() {
 
   int Number_Of_Cylinders =
       Number_Of_Sectors / Sector_Per_Track / Head_Per_Cylinder;
+#if NEW_BIOS
+  pi86IoWrite8(0xF011, Number_Of_Cylinders); // CH
+#else
   pi86MemWrite8(0xF8011, Number_Of_Cylinders); // CH
+#endif
 
   Number_Of_Cylinders = (Number_Of_Cylinders >> 2) & 0xC0;
   Sector_Per_Track = Sector_Per_Track & 0X3F; // CL
+#if NEW_BIOS
+  pi86IoWrite8(0xF010, Number_Of_Cylinders + Sector_Per_Track);
+  pi86IoWrite8(0xF012, 0x00); // Always zero for floppy
+  pi86IoWrite8(0xF013, 0x00); // Always zero for floppy
+  pi86IoWrite8(0xF014, 0x00); // Always zero for floppy
+  pi86IoWrite8(0xF015, 0x00); // Always zero for floppy
+  pi86IoWrite8(0xF016, 0X01); // Drive type
+#else
   pi86MemWrite8(0xF8010, Number_Of_Cylinders + Sector_Per_Track);
   pi86MemWrite8(0xF8012, 0x00); // Always zero for floppy
   pi86MemWrite8(0xF8013, 0x00); // Always zero for floppy
   pi86MemWrite8(0xF8014, 0x00); // Always zero for floppy
   pi86MemWrite8(0xF8015, 0x00); // Always zero for floppy
   pi86MemWrite8(0xF8016, 0X01); // Drive type
+#endif
   
   return true;
 }
@@ -74,43 +97,78 @@ static bool Get_Disk_Parameters_C() {
   fseek(driveC, 0x200 * Hidden_Sectors, SEEK_SET);
   fread(drive, 1, sizeof(drive), driveC);
 
+#if NEW_BIOS
+  pi86IoWrite8(0xF00C, drive[0x1A]); // Low byte heads per cylinder - DH-1
+  pi86IoWrite8(0xF00D, drive[0x1B]); // High byte heads per cylinder
+  pi86IoWrite8(0xF00E, drive[0x0B]); // Low bytes per sector - uS
+  pi86IoWrite8(0xF00F, drive[0x0C]); // High bytes per sector
+#else
   pi86MemWrite8(0xF800C, drive[0x1A]); // Low byte heads per cylinder - DH-1
   pi86MemWrite8(0xF800D, drive[0x1B]); // High byte heads per cylinder
   pi86MemWrite8(0xF800E, drive[0x0B]); // Low bytes per sector - uS
   pi86MemWrite8(0xF800F, drive[0x0C]); // High bytes per sector
+#endif
 
   int Head_Per_Cylinder   = (drive[0x1B] << 8) | drive[0x1A];
   int Sector_Per_Track    = (drive[0x19] << 8) | drive[0x18];
   int Number_Of_Sectors   = (drive[0x14] << 8) | drive[0x13];
   int Number_Of_Cylinders = Number_Of_Sectors / Sector_Per_Track / Head_Per_Cylinder;
 
+#if NEW_BIOS
+  pi86IoWrite8(0xF011, Number_Of_Cylinders); // CH
+#else
   pi86MemWrite8(0xF8011, Number_Of_Cylinders); // CH
+#endif
 
   Number_Of_Cylinders = (Number_Of_Cylinders >> 2) & 0xC0;
   Sector_Per_Track    = Sector_Per_Track & 0X3F; // CL
+#if NEW_BIOS
+  pi86IoWrite8(0xF010, Number_Of_Cylinders + Sector_Per_Track);
+#else
   pi86MemWrite8(0xF8010, Number_Of_Cylinders + Sector_Per_Track);
+#endif
 
   int Small_Sectors = (drive[0x14] << 8) | drive[0x13];
   if (Small_Sectors == 0x0000) {
+#if NEW_BIOS
+    pi86IoWrite8(0xF012, drive[0x20]); // Big sector
+    pi86IoWrite8(0xF013, drive[0x21]);
+    pi86IoWrite8(0xF014, drive[0x22]);
+    pi86IoWrite8(0xF015, drive[0x23]);
+#else
     pi86MemWrite8(0xF8012, drive[0x20]); // Big sector
     pi86MemWrite8(0xF8013, drive[0x21]);
     pi86MemWrite8(0xF8014, drive[0x22]);
     pi86MemWrite8(0xF8015, drive[0x23]);
+#endif
   } else {
+#if NEW_BIOS
+    pi86IoWrite8(0xF012, drive[0x13]); // Small sector
+    pi86IoWrite8(0xF013, drive[0x14]);
+    pi86IoWrite8(0xF014, 0x00);
+    pi86IoWrite8(0xF015, 0x00);
+#else
     pi86MemWrite8(0xF8012, drive[0x13]); // Small sector
     pi86MemWrite8(0xF8013, drive[0x14]);
     pi86MemWrite8(0xF8014, 0x00);
     pi86MemWrite8(0xF8015, 0x00);
+#endif
   }
+#if NEW_BIOS
+  pi86IoWrite8(0xF016, 0X03);
+#else
   pi86MemWrite8(0xF8016, 0X03);
+#endif
 
   return true;
 }
 
 static void Int13(void) {
 
-  const uint8_t Int13_Command = pi86MemRead8(0xF8000);
-  const uint8_t Drive         = pi86MemRead8(0xF8006);
+  const uint8_t Int13_Command = NEW_BIOS ? pi86IoRead8(0xF000) :
+                                           pi86MemRead8(0xF8000);
+  const uint8_t Drive = NEW_BIOS ? pi86IoRead8(0xF006) :
+                                   pi86MemRead8(0xF8006);
 
   if (Int13_Command != 0xFF) {
 
@@ -118,7 +176,11 @@ static void Int13(void) {
     if (Drive == 0x80) { Get_Disk_Parameters_C(); }
 
     uint8_t int13_data[0X20] = { 0 };
+#if NEW_BIOS
+    memcpy(int13_data, pi86IoPtr(0xF000), 0x20);
+#else
     pi86MemReadPtr(0xF8000, int13_data, 0X20);
+#endif
 
     if (Int13_Command == 0x00) {
       // BIOS DOES ALL THE WORK
@@ -201,12 +263,17 @@ static void Int13(void) {
       if (int13_data[6] == 0x80) { Get_Disk_Parameters_C(); }
     }
 
+#if NEW_BIOS
+    pi86IoWrite8(0xF000, 0xff);
+#else
     pi86MemWrite8(0xF8000, 0xFF);
+#endif
   }
 }
 
 void drivesPollInt13(void) {
-  const uint8_t Int13_Command = pi86MemRead8(0xF8000);
+  const uint8_t Int13_Command = NEW_BIOS ? pi86IoRead8(0xF000) :
+                                           pi86MemRead8(0xF8000);
   if (Int13_Command != 0XFF) {
     Int13();
   }

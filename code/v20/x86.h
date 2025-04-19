@@ -19,3 +19,4 @@ uint8_t  pi86IoRead8    (uint32_t addr);
 void     pi86Irq        (uint8_t line);
 void     pi86BusCycle   (uint32_t cycles);
 void     pi86Trace      (uint32_t cycles);
+uint8_t* pi86IoPtr      (uint32_t addr);

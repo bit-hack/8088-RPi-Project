@@ -5,6 +5,7 @@
 #include "x86.h"
 #include "drives.h"
 #include "vcd.h"
+#include "config.h"
 
 
 #define PIN_CLK   29
@@ -275,6 +276,9 @@ static void Bus_Cycle_Mem_Read_88(uint32_t Address) {
   Data_Bus_Direction_8088_OUT();
   const uint8_t data = pi86MemRead8(Address);
   Write_To_Data_Port_0_7(data);
+#if TRACE
+  printf("MEM R %6x => %02x\n", Address, data);
+#endif
   CLK();
   CLK();
   Data_Bus_Direction_8088_IN();
@@ -283,6 +287,9 @@ static void Bus_Cycle_Mem_Read_88(uint32_t Address) {
 static void Bus_Cycle_Mem_Write_88(uint32_t Address) {
   const uint8_t data = Read_From_Data_Port_0_7();
   pi86MemWrite8(Address, data);
+#if TRACE
+  printf("MEM W %6x <= %02x\n", Address, data);
+#endif
   CLK();
   CLK();
 }
@@ -291,6 +298,9 @@ static void Bus_Cycle_Io_Read_88(uint32_t Address) {
   Data_Bus_Direction_8088_OUT();
   const uint8_t data = pi86IoRead8(Address);  
   Write_To_Data_Port_0_7(data);
+#if TRACE
+  printf("IO  R %6x => %02x\n", Address, data);
+#endif
   CLK();
   CLK();
   Data_Bus_Direction_8088_IN();
@@ -299,6 +309,9 @@ static void Bus_Cycle_Io_Read_88(uint32_t Address) {
 static void Bus_Cycle_Io_Write_88(uint32_t Address) {
   const uint8_t data = Read_From_Data_Port_0_7();
   pi86IoWrite8(Address, data);
+#if TRACE
+  printf("IO  W %6x <= %02x\n", Address, data);
+#endif
   CLK();
   CLK();
 }
@@ -394,11 +407,12 @@ void pi86MemReadPtr(uint32_t addr, uint8_t *dst, uint32_t size) {
 void pi86MemWrite8(uint32_t addr, uint8_t data) {
 
   RAM[addr] = data;
-
+#if !NEW_BIOS
   if (addr == 0xF8000) {
     // poll in case this is an int13 handler request
     drivesPollInt13();
   }
+#endif
 }
 
 uint8_t pi86MemRead8(uint32_t addr) {
@@ -407,6 +421,12 @@ uint8_t pi86MemRead8(uint32_t addr) {
 
 void pi86IoWrite8(uint32_t addr, uint8_t data) {
   IO[addr] = data;
+#if NEW_BIOS
+    if (addr == 0xF000) {
+      // poll in case this is an int13 handler request
+      drivesPollInt13();
+    }
+#endif
 }
 
 uint8_t pi86IoRead8(uint32_t addr) {
@@ -449,15 +469,23 @@ bool pi86LoadBios(const string &path) {
 
   fclose(fd);
 
+#if !NEW_BIOS
   // Jump code to be written to 0xFFFFF, =JMP FAR 0xF000:0X0100
   static const uint8_t FFFF0[] = {
     0XEA, 0X00, 0X01, 0X00, 0XF8, 'E', 'M', ' ', '0',  '4',  '/',  '1',  '0',  '/', '2', '0'
   };
-
   pi86MemWritePtr(0xFFFF0, FFFF0, sizeof(FFFF0)); // Jump Code
+#endif
+
+#if NEW_BIOS
+  pi86IoWrite8(0xF0FF, 0xFF); //Make sure STOP byte is not zero 0x00 = Stop
+  pi86IoWrite8(0xF000, 0xFF); //Make sure int13 command port is 0xFF
+  pi86IoWrite8(0xF0F0, 0x03); //Video mode
+#else
   pi86MemWrite8(0xF80FF, 0xFF); // Make sure STOP byte is not zero 0x00 = Stop
   pi86MemWrite8(0xF8000, 0xFF); // Make sure int13 command port is 0xFF
   pi86MemWrite8(0xF80F0, 0x03); // Video mode
+#endif
   pi86IoWrite8 (0X3DA,   0xFF);
 
   return true;
@@ -479,4 +507,8 @@ void pi86Trace(uint32_t cycles) {
   traceCount = cycles;
 
   Dump_State();
+}
+
+uint8_t* pi86IoPtr(uint32_t addr) {
+  return &IO[addr];
 }

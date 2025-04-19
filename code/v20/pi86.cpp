@@ -10,6 +10,7 @@
 #include "vga.h"
 #include "x86.h"
 #include "keyboard.h"
+#include "config.h"
 
 // TODO: convert to using SDL surface not renderer
 
@@ -17,6 +18,7 @@ using namespace std;
 
 static bool keyboard(void);
 static void display(SDL_Surface *surf);
+
 
 static bool clk_interval(uint32_t &clk, const uint32_t elapsed, const uint32_t reload) {
   if (elapsed >= clk) {
@@ -39,18 +41,19 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  if (!pi86LoadBios("bios/bios.bin")) {
+  if (!pi86LoadBios(NEW_BIOS ? "bios/pcxtbios.bin" : "bios/bios.bin")) {
     return 1;
   }
 
   pi86Start();
+  //pi86Trace(1024 * 32);
 
   // Drive images a: and C:
   if (!drivesStart("img/floppy.img", "img/hdd.img")) {
     return 1;
   }
 
-  const uint32_t clk_freq = 300000;  // 4.77Mhz
+  const uint32_t clk_freq   = 300000;  // 4.77Mhz
   const uint32_t cycles_vga = clk_freq / 25;
   const uint32_t cycles_pit = clk_freq / 18;
 
@@ -76,7 +79,11 @@ int main(int argc, char *argv[]) {
     }
 
     // Check for stop command
+#if NEW_BIOS
+    if (pi86IoRead8(0xf0ff) == 0x00) {
+#else
     if (pi86MemRead8(0xF80FF) == 0X00) {
+#endif
       pi86Stop();
       break; // If stop = 0x00 then stop threads
     }
@@ -149,7 +156,9 @@ static bool keyboard(void) {
   }
 
   if (e.type == SDL_KEYDOWN) {
+#if !NEW_BIOS
     keyInsert(e);
+#endif
     // place keycode in port 60h
     pi86IoWrite8(0x60, 0x00 | keyScanCode(e.key.keysym.sym));
     // let CPU know keycode is waiting
